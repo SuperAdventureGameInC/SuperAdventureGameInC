@@ -2,7 +2,7 @@
 Import("environment")
 
 # Create an array of source file names to compile
-source = ["adventure.c"]
+source = ["Lya.c"]
 
 # Build a program using the environment. The first argument is the name of the program to build.
-environment.Program("adventure", source, LIBS = ["sdl2"])
+environment.Program("adventure", source, LIBS = ["SDL2", "SDL2_image", "m"])
