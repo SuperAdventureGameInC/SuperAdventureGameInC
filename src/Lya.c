@@ -147,7 +147,7 @@ int initializeSDL(void){//Starts up SDL and creates window
 }
 
 int loadTiles(void){
-  SDL_Surface *loadedSurface=IMG_Load("Tiles.png");//Load PNG texture
+  SDL_Surface *loadedSurface=IMG_Load("res/Tiles.png");//Load PNG texture
   if(loadedSurface==NULL){
     printf("Unable to load image %s! SDL_image Error: %s\n","Tiles.png",IMG_GetError());
   }
@@ -169,7 +169,7 @@ int loadTiles(void){
 }
 
 int loadPlayer(void){
-  SDL_Surface *loadedSurface=IMG_Load("Player.png");//Load PNG texture
+  SDL_Surface *loadedSurface=IMG_Load("res/Player.png");//Load PNG texture
   if(loadedSurface==NULL){
     printf("Unable to load image %s! SDL_image Error: %s\n","Player.png",IMG_GetError());
   }
@@ -191,7 +191,7 @@ int loadPlayer(void){
 }
 
 int loadProjectiles(void){
-  SDL_Surface *loadedSurface=IMG_Load("Projectiles.png");//Load PNG texture
+  SDL_Surface *loadedSurface=IMG_Load("res/Projectiles.png");//Load PNG texture
   if(loadedSurface==NULL){
     printf("Unable to load image %s! SDL_image Error: %s\n","Projectiles.png",IMG_GetError());
   }
@@ -213,7 +213,7 @@ int loadProjectiles(void){
 }
 
 int loadLife(void){
-  SDL_Surface *loadedSurface=IMG_Load("Life.png");//Load PNG texture
+  SDL_Surface *loadedSurface=IMG_Load("res/Life.png");//Load PNG texture
   if(loadedSurface==NULL){
     printf("Unable to load image %s! SDL_image Error: %s\n","Life.png",IMG_GetError());
   }
@@ -235,7 +235,7 @@ int loadLife(void){
 }
 
 int loadFont(void){
-  SDL_Surface *loadedSurface=SDL_LoadBMP("font.bmp");
+  SDL_Surface *loadedSurface=IMG_Load("res/font.bmp");
   if(loadedSurface==NULL){
     printf("Unable to load image %s! SDL Error: %s\n","font.bmp",SDL_GetError());
     return 1;
