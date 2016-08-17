@@ -9,6 +9,8 @@
   Single lower case letter: local variable used as counter or loop index (example: i)
 */
 
+#include "Audio.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -111,6 +113,18 @@ SDL_Texture *gTextureProjectiles=NULL;//Projectiles sheet texture
 SDL_Texture *gTextureLife=NULL;//Life meter texture
 SDL_Texture *gTextureFont=NULL;//Font sheet texture
 
+struct Sound *gSoundFire = NULL;
+struct Sound *gSoundIce = NULL;
+
+enum EnumSpellType {
+  eFire,
+  ePlasma,
+  eIce,
+  ePurple,
+  eElectric,
+  eGreen,
+  eNumSpellTypes
+};
 
 int initializeSDL(void){//Starts up SDL and creates window
   if(SDL_Init(SDL_INIT_VIDEO)<0){//Initialize SDL
@@ -255,6 +269,22 @@ int loadFont(void){
   }
   
   return 0;
+}
+
+int loadAudio(struct AudioCtx *ctx){
+  gSoundFire = loadSound(ctx, "res/fire.opus");
+  if(!gSoundFire){
+    puts("Could not load fire sound file");
+    return 1;
+  }
+
+  gSoundIce = loadSound(ctx, "res/ice.opus");
+  if(!gSoundFire){
+    puts("Could not load fire sound file");
+    return 1;
+  }
+
+  return 0;  
 }
 
 void closeSDL(void){//Frees media and shuts down SDL
@@ -906,11 +936,15 @@ int main(int argc,char*argv[]){
   int ScreenX,ScreenY;//Upper left corner of the screen expressed in map coordinates
   centreScreenOnPlayer(&ScreenX,&ScreenY);
   
-  if(initializeSDL()){//Start up SDL and create window
+  struct AudioCtx *const audioCtx = createAudioCtx();
+  if(!audioCtx){
+    printf("Failed to initialize audio!\n");
+  }
+  else if(initializeSDL()){//Start up SDL and create window
     printf("Failed to initialize!\n");
   }
   else{
-    if(loadTiles()||loadPlayer()||loadProjectiles()||loadLife()||loadFont()){//Load tiles, player, projectiles, life and font
+    if(loadTiles()||loadPlayer()||loadProjectiles()||loadLife()||loadFont()||loadAudio(audioCtx)){//Load tiles, player, projectiles, life and font
       printf("Failed to load media!\n");
     }
     else{
@@ -968,6 +1002,12 @@ int main(int argc,char*argv[]){
             gProjectileList[gNumberOfProjectiles][7]=computeProjectileDirection(gNumberOfProjectiles);
             gPlayerOrientation=gPlayerDirection[gProjectileList[gNumberOfProjectiles][7]];
             gNumberOfProjectiles++;
+            // Play the firing sound. This is just a test, since we only have two sounds right now.
+            if(SpellType == eFire)
+              playSound(gSoundFire, 0);
+            else if(SpellType == eIce)
+              playSound(gSoundIce, 0);
+
           }
         }
         
