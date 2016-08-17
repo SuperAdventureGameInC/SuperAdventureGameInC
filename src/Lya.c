@@ -27,7 +27,9 @@
 #define DELAY_BETWEEN_FRAMES 20//Delay between frames in millisecond
 #define PLAYER_SPEED 60//player speed in tenths of pixels per frame = speed [pixels per second] * delay between frames [millisecond] / 100
 #define MAX_PROJECTILE 1000//maximum number of projectiles
-#define PROJECTILE_INFO 9//number of information stored per projectile
+#define PROJECTILE_INFO 10//number of information stored per projectile
+#define MAX_ENEMY 100//maximum number of enemies
+#define ENEMY_INFO 8//number of information stored per enemy
 #define NUMBER_OF_SPELLS 6//number of spells in the game
 
 const int gPlayerSpeedDiagonal=PLAYER_SPEED*71/100;
@@ -62,9 +64,12 @@ Uint16 gMap[MAX_ROW][MAX_COLUMN]={//gMap[i][j] is the index of the tile to displ
 int gPlayerX=5*SCREEN_WIDTH,gPlayerY=5*SCREEN_HEIGHT;//10 times the (x,y) coordinate of upper left corner of the player sprite
 int gTextX,gTextY;//(x,y) coordinate of upper left corner of text to render
 int gPlayerOrientation=2;//player orientation: 0 = UP or UP_LEFT, 1 = LEFT or DOWN_LEFT, 2 = DOWN or DOWN_RIGHT, 3 = RIGHT or UP_RIGHT
-int gFrame=8;//frame number in player animation times 10
+int gPlayerHP=20,gMaxHP=20;
+int gPlayerSkipFrames=0;//To blink if the player get hit
 int gNumberOfProjectiles=0;
-int gProjectileList[MAX_PROJECTILE][PROJECTILE_INFO];//Each row of gProjectileList contains the following information about a projectile: PositionX*10, PositionY*10, VelocityX*10, VelocityY*10, TravelSteps, TargetX, TargetY, Direction (0 to 15), ProjectileType (0 to NUMBER_OF_SPELLS - 1 for player spells, NUMBER_OF_SPELLS and above will serve for other projectiles)
+int gProjectileList[MAX_PROJECTILE][PROJECTILE_INFO];//Each row of gProjectileList contains the following information about a projectile: PositionX*10, PositionY*10, VelocityX*10, VelocityY*10, TravelSteps, TargetX, TargetY, Direction (0 to 15), ProjectileType (0 to NUMBER_OF_SPELLS - 1 for spells, NUMBER_OF_SPELLS and above will serve for other projectiles), Caster (0=player,1=enemy)
+int gNumberOfEnemies=0;
+int gEnemyList[MAX_ENEMY][ENEMY_INFO];//Each row of gEnemyList contains the following information about a enemy: PositionX*10, PositionY*10, EnemyType, HP, Frame, Orientation, Cooldown, SkipFrame
 const int gPlayerDirection[16]={3,3,3,0,0,0,0,1,1,1,1,2,2,2,2,3};//gPlayerDirection[ProjectileDirection] is the player direction when casting a spell in ProjectileDirection
 int gMovementObstacle[1024]={//gMovementObstacle[TileIndex] = 1 if TileIndex correspond to a movement obstacle, = 0 if not
   0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -100,7 +105,7 @@ int gProjectileObstacle[1024]={//gProjectileObstacle[TileIndex] = 1 if TileIndex
   0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-int gHasSpell[NUMBER_OF_SPELLS]={1,1,1,1,1,1};//Spells available to the player
+int gHasSpell[NUMBER_OF_SPELLS]={1,1,1,1,0,0};//Spells available to the player
 int gSpellStock[NUMBER_OF_SPELLS]={100,200,100,100,100,100};//Number of spells the player has in stock for each spell
 int gMaxSpellStock[NUMBER_OF_SPELLS]={200,400,200,200,200,200};//Maximum stock for each spell
 int gSpellSpeed[NUMBER_OF_SPELLS]={120,180,100,180,150,170};//speed in tenths of pixels per frame
@@ -109,6 +114,7 @@ SDL_Window *gWindow=NULL;//The window we'll be rendering to
 SDL_Renderer *gRenderer=NULL;//The window renderer
 SDL_Texture *gTextureTiles=NULL;//Tile sheet texture
 SDL_Texture *gTexturePlayer=NULL;//Player sheet texture
+SDL_Texture *gTextureEnemy=NULL;//Enemy sheet texture
 SDL_Texture *gTextureProjectiles=NULL;//Projectiles sheet texture
 SDL_Texture *gTextureLife=NULL;//Life meter texture
 SDL_Texture *gTextureFont=NULL;//Font sheet texture
@@ -197,6 +203,28 @@ int loadPlayer(void){
   }
   
   if(gTexturePlayer==NULL){
+    printf("Failed to load texture image!\n");
+    return 1;
+  }
+  
+  return 0;
+}
+
+int loadEnemy(void){
+  SDL_Surface *loadedSurface=IMG_Load("SkeletonArcher.png");//Load PNG texture
+  if(loadedSurface==NULL){
+    printf("Unable to load image %s! SDL_image Error: %s\n","SkeletonArcher.png",IMG_GetError());
+  }
+  else{//Create texture from surface pixels
+    SDL_SetColorKey(loadedSurface,SDL_TRUE,SDL_MapRGB(loadedSurface->format,0,255,255));//Set the transparent pixel to cyan
+    gTextureEnemy=SDL_CreateTextureFromSurface(gRenderer,loadedSurface);
+    if(gTextureEnemy==NULL){
+      printf("Unable to create texture from %s! SDL Error: %s\n","SkeletonArcher.png",SDL_GetError());
+    }
+    SDL_FreeSurface(loadedSurface);//Get rid of old loaded surface
+  }
+  
+  if(gTextureEnemy==NULL){
     printf("Failed to load texture image!\n");
     return 1;
   }
@@ -527,11 +555,11 @@ void renderProjectiles(int ScreenX,int ScreenY){
   }
 }
 
-void renderPlayer(int ScreenX,int ScreenY){
+void renderPlayer(int ScreenX,int ScreenY,int Frame,int Orientation){
   //Renders the player in rectangle [ (gPlayerX-32,gPlayerY-54) , (gPlayerX+32,gPlayerY+10) ].
   SDL_Rect SrcRect;//source rectangle
-  SrcRect.x=64*(gFrame/10);
-  SrcRect.y=64*(gPlayerOrientation+8);
+  SrcRect.x=64*Frame;
+  SrcRect.y=64*(Orientation+8);
   SrcRect.w=64;
   SrcRect.h=64;
   SDL_Rect DstRect;//destination rectangle
@@ -541,6 +569,21 @@ void renderPlayer(int ScreenX,int ScreenY){
   DstRect.h=64;
   SDL_RenderCopy(gRenderer,gTexturePlayer,&SrcRect,&DstRect);//Render player to screen
 }
+
+void renderEnemy(int ScreenX,int ScreenY,int Frame,int Orientation,int EnemyIndex){
+  SDL_Rect SrcRect;//source rectangle
+  SrcRect.x=64*Frame;
+  SrcRect.y=64*(Orientation+8);
+  SrcRect.w=64;
+  SrcRect.h=64;
+  SDL_Rect DstRect;//destination rectangle
+  DstRect.x=gEnemyList[EnemyIndex][0]/10-32-ScreenX;
+  DstRect.y=(gEnemyList[EnemyIndex][1]+HALF_SIDE_PLAYER_COLLISION_BOX)/10-64-ScreenY;
+  DstRect.w=64;
+  DstRect.h=64;
+  SDL_RenderCopy(gRenderer,gTextureEnemy,&SrcRect,&DstRect);//Render enemy to screen
+}
+
 
 void renderSpellInterface(int SpellTypeLeft,int SpellTypeRight){
   int i;
@@ -634,7 +677,7 @@ int moveRight(int Speed){
   DestinationRow=gPlayerY/320;
   DestinationColumn=gPlayerX/320;
   RemainderRow=gPlayerY%320;
-  RowOffsetOfAdjacentTileToCheck=(RemainderRow>320-HALF_SIDE_PLAYER_COLLISION_BOX)-(RemainderRow<HALF_SIDE_PLAYER_COLLISION_BOX);//-1 if we have to check the tile above, is 0 if we don't have to check an adjacent tile, 1 if we have to check the tile below
+  RowOffsetOfAdjacentTileToCheck=(RemainderRow>320-HALF_SIDE_PLAYER_COLLISION_BOX)-(RemainderRow<HALF_SIDE_PLAYER_COLLISION_BOX);//-1 if we have to check the tile above, is 0 if we don't have to check a second adjacent tile, 1 if we have to check the tile below
   if(DestinationColumn<MAX_COLUMN && ( gMovementObstacle[gMap[DestinationRow][DestinationColumn+1]] || gMovementObstacle[gMap[DestinationRow+RowOffsetOfAdjacentTileToCheck][DestinationColumn+1]]) ){
     Boundary=320*(DestinationColumn+1)-BOUNDARY_OFFSET;
     if(gPlayerX>Boundary)gPlayerX=Boundary;
@@ -773,73 +816,111 @@ void centreScreenOnPlayer(int*ScreenX,int*ScreenY){
   else *ScreenY=gPlayerY/10-SCREEN_HEIGHT/2;
 }
 
-void applyProjectileImpact(int TargetRow,int TargetColumn, int ProjectileType){
-//Damage enemy and modify the tiles depending on the spell
-  switch(ProjectileType){
-    case 0://fire spell
-      //to-do: damage enemy target
-      switch(gMap[TargetRow][TargetColumn]){//Tile modifications
-        case 11:case 73:case 75:case 137:case 202:case 265:case 705:case 734:
-          gMap[TargetRow][TargetColumn]=74;break;//If the tile index was any for the above, it turns into tile 26 (=burned tile).
-        case 644:gMap[TargetRow][TargetColumn]=645;break;
-        case 645:case 733:gMap[TargetRow][TargetColumn]=705;break;
-        case 730:gMap[TargetRow][TargetColumn]=640;break;
-        case 732:gMap[TargetRow][TargetColumn]=642;break;
-        case 794:gMap[TargetRow][TargetColumn]=832;break;
-        case 795:gMap[TargetRow][TargetColumn]=833;break;
-        case 796:gMap[TargetRow][TargetColumn]=834;break;
-        case 798:gMap[TargetRow][TargetColumn]=643;break;
-      }
-      break;
-    case 1://standard damage spell, doesn't modify terrain
-      //to-do: damage enemy target
-      break;
-    case 2://ice spell
-      //to-do: damage enemy target
-      switch(gMap[TargetRow][TargetColumn]){//Tile modifications
-        case 74:gMap[TargetRow][TargetColumn]=734;break;
-        case 640:gMap[TargetRow][TargetColumn]=730;break;
-        case 642:gMap[TargetRow][TargetColumn]=732;break;
-        case 643:gMap[TargetRow][TargetColumn]=798;break;
-        case 705:gMap[TargetRow][TargetColumn]=733;break;
-        case 832:gMap[TargetRow][TargetColumn]=794;break;
-        case 833:gMap[TargetRow][TargetColumn]=795;break;
-        case 834:gMap[TargetRow][TargetColumn]=796;break;
-      }
-      break;
-    case 3:
-      break;
-    case 4:
-      break;
-    case 5:
-      break;
+void applyProjectileImpact(int TargetType,int ProjectileIndex){
+/*Damage enemy or modify the tiles depending on the spell, removes the projectile from gProjectileList when done.
+  TargetType:
+   0 = empty tile (ground, building, ... )
+   1 = the player
+   2 = enemy index 0
+   3 = enemy index 1
+   ...
+*/
+  int i,j,TargetRow,TargetColumn;
+  
+  if(TargetType==0){
+    TargetColumn=gProjectileList[ProjectileIndex][0]/320;
+    TargetRow=gProjectileList[ProjectileIndex][1]/320;
+    switch(gProjectileList[ProjectileIndex][8]){//ProjectileType
+      case 0://fire spell
+        switch(gMap[TargetRow][TargetColumn]){//Tile modifications
+          case 11:case 73:case 75:case 137:case 202:case 265:case 705:case 734:
+            gMap[TargetRow][TargetColumn]=74;break;//If the tile index was any for the above, it turns into tile 26 (=burned tile).
+          case 644:gMap[TargetRow][TargetColumn]=645;break;
+          case 645:case 733:gMap[TargetRow][TargetColumn]=705;break;
+          case 730:gMap[TargetRow][TargetColumn]=640;break;
+          case 732:gMap[TargetRow][TargetColumn]=642;break;
+          case 794:gMap[TargetRow][TargetColumn]=832;break;
+          case 795:gMap[TargetRow][TargetColumn]=833;break;
+          case 796:gMap[TargetRow][TargetColumn]=834;break;
+          case 798:gMap[TargetRow][TargetColumn]=643;break;
+        }
+        break;
+      case 1://standard damage spell, doesn't modify terrain
+        break;
+      case 2://ice spell
+        switch(gMap[TargetRow][TargetColumn]){//Tile modifications
+          case 74:gMap[TargetRow][TargetColumn]=734;break;
+          case 640:gMap[TargetRow][TargetColumn]=730;break;
+          case 642:gMap[TargetRow][TargetColumn]=732;break;
+          case 643:gMap[TargetRow][TargetColumn]=798;break;
+          case 705:gMap[TargetRow][TargetColumn]=733;break;
+          case 832:gMap[TargetRow][TargetColumn]=794;break;
+          case 833:gMap[TargetRow][TargetColumn]=795;break;
+          case 834:gMap[TargetRow][TargetColumn]=796;break;
+        }
+        break;
+      case 3:
+        break;
+      case 4:
+        break;
+      case 5:
+        break;
+    }
+  }
+  else if(TargetType==1){
+    gPlayerHP--;
+    gPlayerSkipFrames=2;//makes the player blink when hit
+  }
+  else{
+    gEnemyList[TargetType-2][7]=2;//makes the enemy blink when hit
+    if(--gEnemyList[TargetType-2][3]==0){//Reduce enemy HP and remove it if HP=0
+      gNumberOfEnemies--;
+      for(i=TargetType-2;i<gNumberOfEnemies;i++)
+        for(j=0;j<ENEMY_INFO;j++)gEnemyList[i][j]=gEnemyList[i+1][j];
+    }
+  }
+  
+  {//Remove projectile
+    gNumberOfProjectiles--;
+    for(i=ProjectileIndex;i<gNumberOfProjectiles;i++)
+      for(j=0;j<PROJECTILE_INFO;j++)gProjectileList[i][j]=gProjectileList[i+1][j];
   }
 }
 
 void moveProjectiles(void){
-// moves all projectiles and remove the ones that reach their target
-  int i,j,k,RemoveProjectile,DestinationRow,DestinationColumn;
+//Moves all projectiles and remove the ones that reach their target
+  int i,j,DestinationRow,DestinationColumn,DeltaX,DeltaY,HasHit;
   for(i=0;i<gNumberOfProjectiles;i++){
     if(gProjectileList[i][4]){//the projectile has some steps left to travel
       gProjectileList[i][0]+=gProjectileList[i][2];
       gProjectileList[i][1]+=gProjectileList[i][3];
-      gProjectileList[i][4]--;
+    }
+    else{//this projectile reached its target
+      gProjectileList[i][0]=gProjectileList[i][5]*10;
+      gProjectileList[i][1]=gProjectileList[i][6]*10;
+    }
+    gProjectileList[i][4]--;
+    
+    HasHit=0;
+    if(gProjectileList[i][9]==0)//Checks if a player projectile hits an enemy
+      for(j=0;j<gNumberOfEnemies;j++){
+        DeltaX=gProjectileList[i][0]-gEnemyList[j][0];
+        DeltaY=gProjectileList[i][1]-gEnemyList[j][1];
+        if(-190<DeltaX&&DeltaX<200&&-460<DeltaY&&DeltaY<140){//gEnemyList[j][1] is 16 pixels larger than hit box centre
+          applyProjectileImpact(j+2,i--);
+          HasHit=1;
+          break;
+        }
+      }
+    if(HasHit==0){
+      DeltaX=gProjectileList[i][0]-gPlayerX;
+      DeltaY=gProjectileList[i][1]-gPlayerY;
       DestinationColumn=gProjectileList[i][0]/320;
       DestinationRow=gProjectileList[i][1]/320;
-      if(RemoveProjectile=gProjectileObstacle[gMap[DestinationRow][DestinationColumn]])//Checks if the projectile encounters an obstacle. RemoveProjectile stores the obstacle check result.
-        applyProjectileImpact(DestinationRow,DestinationColumn,gProjectileList[i][8]);
-    }
-    else{//remove the projectile that would go beyond its target
-      RemoveProjectile=1;
-      DestinationColumn=gProjectileList[i][5]/32;//this projectile reached its target
-      DestinationRow=gProjectileList[i][6]/32;
-      applyProjectileImpact(DestinationRow,DestinationColumn,gProjectileList[i][8]);
-    }
-    if(RemoveProjectile){
-      gNumberOfProjectiles--;
-      for(j=i--;j<gNumberOfProjectiles;j++){
-        for(k=0;k<PROJECTILE_INFO;k++)gProjectileList[j][k]=gProjectileList[j+1][k];
-      }
+      if(gProjectileList[i][9]&&-190<DeltaX&&DeltaX<200&&-460<DeltaY&&DeltaY<140)//Checks if an enemy projectile hits the player
+        applyProjectileImpact(1,i--);
+      else if(gProjectileList[i][4]==-1||gProjectileObstacle[gMap[DestinationRow][DestinationColumn]])//Checks if the projectile reached its target or encountered an obstacle
+        applyProjectileImpact(0,i--);
     }
   }
 }
@@ -922,11 +1003,23 @@ int computeProjectileDirection(int ProjectileIndex){
 }
 
 
+void makeEnemyShoot(int EnemyIndex){
+  gProjectileList[gNumberOfProjectiles][0]=gEnemyList[EnemyIndex][0];
+  gProjectileList[gNumberOfProjectiles][1]=gEnemyList[EnemyIndex][1];
+  gProjectileList[gNumberOfProjectiles][5]=gPlayerX/10;
+  gProjectileList[gNumberOfProjectiles][6]=gPlayerY/10;
+  gProjectileList[gNumberOfProjectiles][8]=0;
+  gProjectileList[gNumberOfProjectiles][9]=1;
+  computeProjectileVelocityAndSteps(gNumberOfProjectiles);
+  gProjectileList[gNumberOfProjectiles][7]=computeProjectileDirection(gNumberOfProjectiles);
+  gNumberOfProjectiles++;
+}
+
 int main(int argc,char*argv[]){
   Uint32 LastUpdate,ElapsedTime;//LastUpdate and ElapsedTime in millisecond
   Uint32 Hello=5000;//Duration in milliseconds of a Hello test message
-  int Cooldown=0;
-  int PlayerHP=9,MaxHP=20;
+  int i,Cooldown=0;
+  int PlayerFrame=8;//frame number in player animation times 10
   int MouseX,MouseY;//Mouse location in screen coordinates
   int KnownSpells=gHasSpell[0]+gHasSpell[1]+gHasSpell[2]+gHasSpell[3]+gHasSpell[4]+gHasSpell[5];
   int SpellTypeLeft=0,SpellTypeRight=2;//SpellType for left and right mouse button, 6 = no spell
@@ -936,6 +1029,25 @@ int main(int argc,char*argv[]){
   int ScreenX,ScreenY;//Upper left corner of the screen expressed in map coordinates
   centreScreenOnPlayer(&ScreenX,&ScreenY);
   
+  {//test with 2 enemies
+    gEnemyList[gNumberOfEnemies][0]=1120;
+    gEnemyList[gNumberOfEnemies][1]=1120;
+    gEnemyList[gNumberOfEnemies][3]=20;
+    gEnemyList[gNumberOfEnemies][4]=1;
+    gEnemyList[gNumberOfEnemies][5]=1;
+    gEnemyList[gNumberOfEnemies][6]=0;
+    gEnemyList[gNumberOfEnemies][7]=0;
+    gNumberOfEnemies++;
+    gEnemyList[gNumberOfEnemies][0]=29*320;
+    gEnemyList[gNumberOfEnemies][1]=25*320;
+    gEnemyList[gNumberOfEnemies][3]=20;
+    gEnemyList[gNumberOfEnemies][4]=1;
+    gEnemyList[gNumberOfEnemies][5]=1;
+    gEnemyList[gNumberOfEnemies][6]=0;
+    gEnemyList[gNumberOfEnemies][7]=0;
+    gNumberOfEnemies++;
+  }
+  
   struct AudioCtx *const audioCtx = createAudioCtx();
   if(!audioCtx){
     printf("Failed to initialize audio!\n");
@@ -944,7 +1056,7 @@ int main(int argc,char*argv[]){
     printf("Failed to initialize!\n");
   }
   else{
-    if(loadTiles()||loadPlayer()||loadProjectiles()||loadLife()||loadFont()||loadAudio(audioCtx)){//Load tiles, player, projectiles, life and font
+    if(loadTiles()||loadPlayer()||loadEnemy()||loadProjectiles()||loadLife()||loadFont()||loadAudio(audioCtx)){//Load tiles, player, enemy, projectiles, life, font and audio
       printf("Failed to load media!\n");
     }
     else{
@@ -998,6 +1110,7 @@ int main(int argc,char*argv[]){
             gProjectileList[gNumberOfProjectiles][5]=ScreenX+MouseX;
             gProjectileList[gNumberOfProjectiles][6]=ScreenY+MouseY;
             gProjectileList[gNumberOfProjectiles][8]=SpellType;
+            gProjectileList[gNumberOfProjectiles][9]=0;
             computeProjectileVelocityAndSteps(gNumberOfProjectiles);
             gProjectileList[gNumberOfProjectiles][7]=computeProjectileDirection(gNumberOfProjectiles);
             gPlayerOrientation=gPlayerDirection[gProjectileList[gNumberOfProjectiles][7]];
@@ -1012,10 +1125,10 @@ int main(int argc,char*argv[]){
         }
         
         if(movePlayer()){
-          gFrame+=2;if(gFrame>=90)gFrame=10;//cycle animation frames gFrame/10 in [1,8]
+          PlayerFrame+=2;if(PlayerFrame>=90)PlayerFrame=10;//cycle animation frames PlayerFrame/10 in [1,8]
         }
         else{
-          gFrame=8;// gFrame/10 = 0 --> static frame
+          PlayerFrame=8;// PlayerFrame/10 = 0 --> static frame
         }
         centreScreenOnPlayer(&ScreenX,&ScreenY);
         
@@ -1023,8 +1136,26 @@ int main(int argc,char*argv[]){
         
         SDL_RenderClear(gRenderer);//Clear screen
         renderMap(ScreenX,ScreenY);
+        
+        for(i=0;i<gNumberOfEnemies;i++){
+          if(gEnemyList[i][7]==0)
+            renderEnemy(ScreenX,ScreenY,1,1,i);//render the enemy if it was not hit
+          else
+            gEnemyList[i][7]--;
+          
+          if(gEnemyList[i][6]==0){//Enemy cooldown
+            makeEnemyShoot(i);
+            gEnemyList[i][6]=gSpellCooldown[4];
+            }
+          else gEnemyList[i][6]--;
+        }
+        
         renderProjectiles(ScreenX,ScreenY);
-        renderPlayer(ScreenX,ScreenY);
+        if(gPlayerSkipFrames==0)
+          renderPlayer(ScreenX,ScreenY,PlayerFrame/10,gPlayerOrientation);//render the player if it was not hit
+        else
+          gPlayerSkipFrames--;
+        
         if(Hello>0){
           gTextX=gPlayerX/10+12-ScreenX;
           gTextY=gPlayerY/10-45-ScreenY;
@@ -1038,7 +1169,7 @@ int main(int argc,char*argv[]){
         }
         */
         
-        renderHP(PlayerHP,MaxHP);
+        if(gPlayerHP>=0)renderHP(gPlayerHP,gMaxHP);
         if(KnownSpells)renderSpellInterface(SpellTypeLeft,SpellTypeRight);
         SDL_RenderPresent(gRenderer);//Update screen
         if(Cooldown)Cooldown--;//lower Cooldown if it is non-zero
