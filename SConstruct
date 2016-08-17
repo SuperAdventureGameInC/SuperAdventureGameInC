@@ -5,7 +5,7 @@ import os
 environment = Environment(ENV = os.environ)
 
 if os.name == "posix":
-	environment.Append(CFLAGS = " -O2 -g ", LINKFLAGS = " -g ")
+	environment.Append(CFLAGS = " -g -Werror ", LINKFLAGS = " -g ")
 
 # SConscript executes the build script specified.
 SConscript(dirs=["src"], exports=["environment"])
