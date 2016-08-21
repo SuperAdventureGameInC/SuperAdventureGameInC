@@ -375,7 +375,8 @@ void closeSDL(void){//Frees media and shuts down SDL
   SDL_DestroyTexture(gTextureEnemy);gTextureEnemy=NULL;//Free loaded enemy
   SDL_DestroyTexture(gTextureProjectiles);gTextureProjectiles=NULL;//Free loaded projectiles
   SDL_DestroyTexture(gTextureLife);gTextureLife=NULL;//Free loaded life
-  SDL_DestroyTexture(gTextureTitle);gTextureTitle=NULL;//Free loaded life
+  SDL_DestroyTexture(gTextureTitle);gTextureTitle=NULL;//Free loaded title
+  SDL_DestroyTexture(gTextureGameOver);gTextureGameOver=NULL;//Free loaded GameOver
   SDL_DestroyTexture(gTextureFont);gTextureFont=NULL;//Free loaded font
   
   //Destroy window
