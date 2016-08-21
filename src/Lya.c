@@ -9,7 +9,7 @@
   Single lower case letter: local variable used as counter or loop index (example: i)
 */
 
-#define AUDIO 1
+//#define AUDIO 1
 
 #ifdef AUDIO
 #include "Audio.h"
@@ -65,14 +65,14 @@ Uint16 gMap[MAX_ROW][MAX_COLUMN]={//gMap[i][j] is the index of the tile to displ
   705,705,705,705,705,705,705,705,705,705,705, 73, 74, 75,705,833,834,643,643,643,643,643,643,643,643,643,643,704,705,705,705,
   705,705,705,705,705,705,705,705,705,705,705, 73, 74, 75,770,643,643,643,643,643,643,643,643,643,643,643,643,704,705,705,705,
   705,705,705,705,705,705,705,705,705,705,705, 73, 74, 75,834,643,643,643,643,643,643,643,643,643,643,643,643,704,705,705,705};
-int gPlayerX=5*SCREEN_WIDTH,gPlayerY=5*SCREEN_HEIGHT;//10 times the (x,y) coordinate of upper left corner of the player sprite
 int gTextX,gTextY;//(x,y) coordinate of upper left corner of text to render
-int gPlayerOrientation=2;//player orientation: 0 = UP or UP_LEFT, 1 = LEFT or DOWN_LEFT, 2 = DOWN or DOWN_RIGHT, 3 = RIGHT or UP_RIGHT
-int gPlayerHP=20,gMaxHP=20;
-int gPlayerSkipFrames=0;//To blink if the player get hit
-int gNumberOfProjectiles=0;
+int gPlayerX,gPlayerY;//10 times the (x,y) coordinate of upper left corner of the player sprite
+int gPlayerOrientation;//player orientation: 0 = UP or UP_LEFT, 1 = LEFT or DOWN_LEFT, 2 = DOWN or DOWN_RIGHT, 3 = RIGHT or UP_RIGHT
+int gPlayerHP,gPlayerMaxHP;
+int gPlayerSkipFrames;//To blink if the player get hit
+int gNumberOfProjectiles;
 int gProjectileList[MAX_PROJECTILE][PROJECTILE_INFO];//Each row of gProjectileList contains the following information about a projectile: PositionX*10, PositionY*10, VelocityX*10, VelocityY*10, TravelSteps, TargetX, TargetY, Direction (0 to 15), ProjectileType (0 to NUMBER_OF_SPELLS - 1 for spells, NUMBER_OF_SPELLS and above will serve for other projectiles), Caster (0=player,1=enemy)
-int gNumberOfEnemies=0;
+int gNumberOfEnemies;
 int gEnemyList[MAX_ENEMY][ENEMY_INFO];//Each row of gEnemyList contains the following information about a enemy: PositionX*10, PositionY*10, EnemyType, HP, Frame, Orientation, Cooldown, SkipFrame
 const int gPlayerDirection[16]={3,3,3,0,0,0,0,1,1,1,1,2,2,2,2,3};//gPlayerDirection[ProjectileDirection] is the player direction when casting a spell in ProjectileDirection
 int gMovementObstacle[1024]={//gMovementObstacle[TileIndex] = 1 if TileIndex correspond to a movement obstacle, = 0 if not
@@ -109,8 +109,8 @@ int gProjectileObstacle[1024]={//gProjectileObstacle[TileIndex] = 1 if TileIndex
   0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-int gHasSpell[NUMBER_OF_SPELLS]={1,1,1,1,0,0};//Spells available to the player
-int gSpellStock[NUMBER_OF_SPELLS]={100,200,100,100,100,100};//Number of spells the player has in stock for each spell
+int gHasSpell[NUMBER_OF_SPELLS]={0};//Spells available to the player
+int gSpellStock[NUMBER_OF_SPELLS]={0};//Number of spells the player has in stock for each spell
 int gMaxSpellStock[NUMBER_OF_SPELLS]={200,400,200,200,200,200};//Maximum stock for each spell
 int gSpellSpeed[NUMBER_OF_SPELLS]={120,180,100,180,150,170};//speed in tenths of pixels per frame
 int gSpellCooldown[NUMBER_OF_SPELLS]={8,5,12,15,10,60};//spell cooldown in frames
@@ -121,6 +121,8 @@ SDL_Texture *gTexturePlayer=NULL;//Player sheet texture
 SDL_Texture *gTextureEnemy=NULL;//Enemy sheet texture
 SDL_Texture *gTextureProjectiles=NULL;//Projectiles sheet texture
 SDL_Texture *gTextureLife=NULL;//Life meter texture
+SDL_Texture *gTextureTitle=NULL;
+SDL_Texture *gTextureGameOver=NULL;
 SDL_Texture *gTextureFont=NULL;//Font sheet texture
 
 #ifdef AUDIO
@@ -282,6 +284,50 @@ int loadLife(void){
   return 0;
 }
 
+int loadTitle(void){
+  SDL_Surface *loadedSurface=IMG_Load("res/Title.png");//Load PNG texture
+  if(loadedSurface==NULL){
+    printf("Unable to load image %s! SDL_image Error: %s\n","Title.png",IMG_GetError());
+  }
+  else{//Create texture from surface pixels
+    SDL_SetColorKey(loadedSurface,SDL_TRUE,SDL_MapRGB(loadedSurface->format,0,255,255));//Set the transparent pixel to cyan
+    gTextureTitle=SDL_CreateTextureFromSurface(gRenderer,loadedSurface);
+    if(gTextureTitle==NULL){
+      printf("Unable to create texture from %s! SDL Error: %s\n","Title.png",SDL_GetError());
+    }
+    SDL_FreeSurface(loadedSurface);//Get rid of old loaded surface
+  }
+  
+  if(gTextureTitle==NULL){
+    printf("Failed to load texture image!\n");
+    return 1;
+  }
+  
+  return 0;
+}
+
+int loadGameOver(void){
+  SDL_Surface *loadedSurface=IMG_Load("res/GameOver.png");//Load PNG texture
+  if(loadedSurface==NULL){
+    printf("Unable to load image %s! SDL_image Error: %s\n","GameOver.png",IMG_GetError());
+  }
+  else{//Create texture from surface pixels
+    SDL_SetColorKey(loadedSurface,SDL_TRUE,SDL_MapRGB(loadedSurface->format,0,255,255));//Set the transparent pixel to cyan
+    gTextureGameOver=SDL_CreateTextureFromSurface(gRenderer,loadedSurface);
+    if(gTextureGameOver==NULL){
+      printf("Unable to create texture from %s! SDL Error: %s\n","GameOver.png",SDL_GetError());
+    }
+    SDL_FreeSurface(loadedSurface);//Get rid of old loaded surface
+  }
+  
+  if(gTextureGameOver==NULL){
+    printf("Failed to load texture image!\n");
+    return 1;
+  }
+  
+  return 0;
+}
+
 int loadFont(void){
   SDL_Surface *loadedSurface=SDL_LoadBMP("res/font.bmp");
   if(loadedSurface==NULL){
@@ -326,8 +372,10 @@ int loadAudio(struct AudioCtx *ctx){
 void closeSDL(void){//Frees media and shuts down SDL
   SDL_DestroyTexture(gTextureTiles);gTextureTiles=NULL;//Free loaded tile
   SDL_DestroyTexture(gTexturePlayer);gTexturePlayer=NULL;//Free loaded player
+  SDL_DestroyTexture(gTextureEnemy);gTextureEnemy=NULL;//Free loaded enemy
   SDL_DestroyTexture(gTextureProjectiles);gTextureProjectiles=NULL;//Free loaded projectiles
   SDL_DestroyTexture(gTextureLife);gTextureLife=NULL;//Free loaded life
+  SDL_DestroyTexture(gTextureTitle);gTextureTitle=NULL;//Free loaded life
   SDL_DestroyTexture(gTextureFont);gTextureFont=NULL;//Free loaded font
   
   //Destroy window
@@ -1010,7 +1058,6 @@ int computeProjectileDirection(int ProjectileIndex){
   
 }
 
-
 void makeEnemyShoot(int EnemyIndex){
   gProjectileList[gNumberOfProjectiles][0]=gEnemyList[EnemyIndex][0];
   gProjectileList[gNumberOfProjectiles][1]=gEnemyList[EnemyIndex][1];
@@ -1023,19 +1070,103 @@ void makeEnemyShoot(int EnemyIndex){
   gNumberOfProjectiles++;
 }
 
-int main(int argc,char*argv[]){
+
+int displayTitleScreen(void){
+/*Function that displays the title screen
+  Return int value:
+    0 if the player requests to quit: "I want to be a warrior"
+    1 if the player starts a new game: "I want to learn magic"
+    2 if the player loads a saved game: "I know some spells"
+*/
+  SDL_Event Event;
+  int Choice=1;
+  int Y[3]={478,362,420};//Y[Choice] is the Y coordinate of the upper side of the selection rectangle
+  SDL_Rect SelectionRectangle={365,Y[Choice],410,50};
+  SDL_Rect ScreenRectangle={0,0,SCREEN_WIDTH,SCREEN_HEIGHT};
+  SDL_SetRenderDrawColor(gRenderer,255,255,255,255);//set the rendering color to white
+  
+  while(1){
+    SDL_RenderClear(gRenderer);
+    SDL_RenderCopy(gRenderer,gTextureTitle,&ScreenRectangle,&ScreenRectangle);
+    SDL_RenderDrawRect(gRenderer,&SelectionRectangle);//render selection rectangle
+    SDL_RenderPresent(gRenderer);
+    while(SDL_PollEvent(&Event)){
+      switch(Event.type){
+        case SDL_QUIT:
+          return 0;
+        case SDL_KEYDOWN:
+          switch(Event.key.keysym.sym){//Select action based on key press
+            case SDLK_UP: //SDL_Keycode for detailed list
+              if(Choice==0)Choice=2;else Choice--;
+              SelectionRectangle.y=Y[Choice];
+              break;
+            case SDLK_DOWN:
+              if(Choice==2)Choice=0;else Choice++;
+              SelectionRectangle.y=Y[Choice];
+              break;
+            case SDLK_RETURN:case SDLK_RETURN2:case SDLK_KP_ENTER:
+              return Choice;
+          }
+      }
+    }
+    SDL_Delay(DELAY_BETWEEN_FRAMES);
+  }
+}
+
+int displayGameOverScreen(void){
+/*Function that displays the game over screen
+  Return int value:
+    0 if the player requests to quit
+    1 if the player press any key
+*/
+  SDL_Event Event;
+  SDL_Rect ScreenRectangle={0,0,SCREEN_WIDTH,SCREEN_HEIGHT};
+  
+  while(1){
+    SDL_RenderClear(gRenderer);
+    SDL_RenderCopy(gRenderer,gTextureGameOver,&ScreenRectangle,&ScreenRectangle);
+    SDL_RenderPresent(gRenderer);
+    while(SDL_PollEvent(&Event)){
+      switch(Event.type){
+        case SDL_QUIT:
+          return 0;
+        case SDL_KEYDOWN:case SDL_MOUSEBUTTONDOWN:
+          return 1;
+      }
+    }
+    SDL_Delay(DELAY_BETWEEN_FRAMES);
+  }
+}
+
+int play(void){
+/*Function that plays the game
+  Return int value:
+    0 if the player requests to quit
+    1 to return to title screen
+*/
   Uint32 LastUpdate,ElapsedTime;//LastUpdate and ElapsedTime in millisecond
   Uint32 Hello=5000;//Duration in milliseconds of a Hello test message
   int i,Cooldown=0;
   int PlayerFrame=8;//frame number in player animation times 10
   int MouseX,MouseY;//Mouse location in screen coordinates
-  int KnownSpells=gHasSpell[0]+gHasSpell[1]+gHasSpell[2]+gHasSpell[3]+gHasSpell[4]+gHasSpell[5];
+  int KnownSpells=0;
   int SpellTypeLeft=0,SpellTypeRight=2;//SpellType for left and right mouse button, 6 = no spell
   int SpellType;
   int SwitchSpell;//Switch spell flag
   int CastSpell=0;//Cast spell flag
   int ScreenX,ScreenY;//Upper left corner of the screen expressed in map coordinates
+  gPlayerX=5*SCREEN_WIDTH,gPlayerY=5*SCREEN_HEIGHT;
   centreScreenOnPlayer(&ScreenX,&ScreenY);
+  gPlayerHP=20;gPlayerMaxHP=20;
+  gNumberOfProjectiles=0;
+  gNumberOfEnemies=0;
+  gPlayerOrientation=2;
+  gPlayerSkipFrames=0;
+  
+  gHasSpell[0]=1;KnownSpells++;gSpellStock[0]=100;
+  gHasSpell[1]=1;KnownSpells++;gSpellStock[1]=200;
+  gHasSpell[2]=1;KnownSpells++;gSpellStock[2]=100;
+  gHasSpell[3]=1;KnownSpells++;gSpellStock[3]=100;
   
   gEnemyList[gNumberOfEnemies][0]=1120;
   gEnemyList[gNumberOfEnemies][1]=1120;
@@ -1054,6 +1185,129 @@ int main(int argc,char*argv[]){
   gEnemyList[gNumberOfEnemies][7]=0;
   gNumberOfEnemies++;
   
+  SDL_Event Event;//Event handler
+  const Uint8 *KeyboardState=SDL_GetKeyboardState(NULL);
+  while(1){
+    LastUpdate=SDL_GetTicks();
+    
+    SwitchSpell=KnownSpells&&(KeyboardState[SDL_SCANCODE_LCTRL]||KeyboardState[SDL_SCANCODE_RCTRL]);//Need at least one spell to prevent infinite switch spell loop
+    while(SDL_PollEvent(&Event)){
+      switch(Event.type){
+        case SDL_QUIT:
+          return 0;
+        case SDL_MOUSEBUTTONDOWN:
+          if(SwitchSpell){
+            switch(Event.button.button){
+              case SDL_BUTTON_LEFT:
+                do{//Switch left spell
+                  if(++SpellTypeLeft>5)SpellTypeLeft=0;
+                }while(gHasSpell[SpellTypeLeft]==0);
+                break;
+              case SDL_BUTTON_RIGHT:
+                do{//Switch right spell
+                  if(++SpellTypeRight>5)SpellTypeRight=0;
+                }while(gHasSpell[SpellTypeRight]==0);
+                break;
+            }
+          }
+          break;
+      }
+    }
+    
+    if(!SwitchSpell){//Can canst only when not changing spell
+      if(SDL_GetMouseState(&MouseX,&MouseY)&SDL_BUTTON(SDL_BUTTON_LEFT)){
+        if(Cooldown==0)CastSpell=gHasSpell[SpellType=SpellTypeLeft];//Will cast left spell
+      }
+      if(SDL_GetMouseState(&MouseX,&MouseY)&SDL_BUTTON(SDL_BUTTON_RIGHT)){
+        if(Cooldown==0)CastSpell=gHasSpell[SpellType=SpellTypeRight];//Will cast right spell
+      }
+    }
+    
+    if(CastSpell){
+      CastSpell=0;//Reset the CastSpell flag
+      if(gSpellStock[SpellType]){
+        Cooldown=gSpellCooldown[SpellType];//Set the Cooldown counter
+        gSpellStock[SpellType]--;
+        gProjectileList[gNumberOfProjectiles][0]=gPlayerX;
+        gProjectileList[gNumberOfProjectiles][1]=gPlayerY;
+        gProjectileList[gNumberOfProjectiles][5]=ScreenX+MouseX;
+        gProjectileList[gNumberOfProjectiles][6]=ScreenY+MouseY;
+        gProjectileList[gNumberOfProjectiles][8]=SpellType;
+        gProjectileList[gNumberOfProjectiles][9]=0;
+        computeProjectileVelocityAndSteps(gNumberOfProjectiles);
+        gProjectileList[gNumberOfProjectiles][7]=computeProjectileDirection(gNumberOfProjectiles);
+        gPlayerOrientation=gPlayerDirection[gProjectileList[gNumberOfProjectiles][7]];
+        gNumberOfProjectiles++;
+        #ifdef Audio
+        // Play the firing sound. This is just a test, since we only have two sounds right now.
+        if(SpellType == eFire)
+          playSound(gSoundFire, 0);
+        else if(SpellType == eIce)
+          playSound(gSoundIce, 0);
+        #endif
+      }
+    }
+    
+    if(movePlayer()){
+      PlayerFrame+=2;if(PlayerFrame>=90)PlayerFrame=10;//cycle animation frames PlayerFrame/10 in [1,8]
+    }
+    else{
+      PlayerFrame=8;// PlayerFrame/10 = 0 --> static frame
+    }
+    centreScreenOnPlayer(&ScreenX,&ScreenY);
+    
+    moveProjectiles();
+    
+    SDL_RenderClear(gRenderer);//Clear screen
+    renderMap(ScreenX,ScreenY);
+    
+    for(i=0;i<gNumberOfEnemies;i++){
+      if(gEnemyList[i][7]==0)
+        renderEnemy(ScreenX,ScreenY,1,1,i);//render the enemy if it was not hit
+      else
+        gEnemyList[i][7]--;
+      
+      if(gEnemyList[i][6]==0){//Enemy cooldown
+        makeEnemyShoot(i);
+        gEnemyList[i][6]=gSpellCooldown[4];
+        }
+      else gEnemyList[i][6]--;
+    }
+    
+    renderProjectiles(ScreenX,ScreenY);
+    if(gPlayerSkipFrames==0)
+      renderPlayer(ScreenX,ScreenY,PlayerFrame/10,gPlayerOrientation);//render the player if it was not hit
+    else
+      gPlayerSkipFrames--;
+    
+    if(Hello>0){
+      gTextX=gPlayerX/10+12-ScreenX;
+      gTextY=gPlayerY/10-45-ScreenY;
+      renderText(gTextX+5,"Hello FlyingJester !\n\nHow are you doing ?");
+      Hello-=DELAY_BETWEEN_FRAMES;
+    }
+    
+    /*if(gHasSpell[0]==0&&Hello<=0){//Example on how to add a spell
+      gHasSpell[0]=1;
+      KnownSpells++;
+    }
+    */
+    
+    if(gPlayerHP>0)renderHP(gPlayerHP,gPlayerMaxHP);else return displayGameOverScreen();
+    if(KnownSpells)renderSpellInterface(SpellTypeLeft,SpellTypeRight);
+    SDL_RenderPresent(gRenderer);//Update screen
+    if(Cooldown)Cooldown--;//lower Cooldown if it is non-zero
+    
+    ElapsedTime=SDL_GetTicks()-LastUpdate;
+    if(ElapsedTime<DELAY_BETWEEN_FRAMES){//Enforce a constant delay between frames
+      SDL_Delay(DELAY_BETWEEN_FRAMES-ElapsedTime);
+    }
+  }
+}
+
+
+int main(int argc,char*argv[]){
+  
   #ifdef AUDIO
   struct AudioCtx *const audioCtx = createAudioCtx();
   if(!audioCtx){
@@ -1065,133 +1319,18 @@ int main(int argc,char*argv[]){
     printf("Failed to initialize!\n");
   }
   else{
-    if(loadTiles()||loadPlayer()||loadEnemy()||loadProjectiles()||loadLife()||loadFont()
+    if(loadTiles()||loadPlayer()||loadEnemy()||loadProjectiles()||loadLife()||loadFont()||loadTitle()||loadGameOver()
       #ifdef AUDIO
       ||loadAudio(audioCtx)
       #endif
-      ){//Load tiles, player, enemy, projectiles, life and font
+      ){//Load tiles, player, enemy, projectiles, life, title, game over and font
       printf("Failed to load media!\n");
     }
     else{
-      
       int MainLoopIsRunning=1;//Main loop running flag
-      SDL_Event Event;//Event handler
-      const Uint8 *KeyboardState=SDL_GetKeyboardState(NULL);
       while(MainLoopIsRunning){//While application is running
-        LastUpdate=SDL_GetTicks();
-        
-        SwitchSpell=KnownSpells&&(KeyboardState[SDL_SCANCODE_LCTRL]||KeyboardState[SDL_SCANCODE_RCTRL]);//Need at least one spell to prevent infinite switch spell loop
-        while(SDL_PollEvent(&Event)){
-          switch(Event.type){
-            case SDL_QUIT:
-              MainLoopIsRunning=0;break;
-            case SDL_MOUSEBUTTONDOWN:
-              if(SwitchSpell){
-                switch(Event.button.button){
-                  case SDL_BUTTON_LEFT:
-                    do{//Switch left spell
-                      if(++SpellTypeLeft>5)SpellTypeLeft=0;
-                    }while(gHasSpell[SpellTypeLeft]==0);
-                    break;
-                  case SDL_BUTTON_RIGHT:
-                    do{//Switch right spell
-                      if(++SpellTypeRight>5)SpellTypeRight=0;
-                    }while(gHasSpell[SpellTypeRight]==0);
-                    break;
-                }
-              }
-              break;
-          }
-        }
-        
-        if(!SwitchSpell){//Can canst only when not changing spell
-          if(SDL_GetMouseState(&MouseX,&MouseY)&SDL_BUTTON(SDL_BUTTON_LEFT)){
-            if(Cooldown==0)CastSpell=gHasSpell[SpellType=SpellTypeLeft];//Will cast left spell
-          }
-          if(SDL_GetMouseState(&MouseX,&MouseY)&SDL_BUTTON(SDL_BUTTON_RIGHT)){
-            if(Cooldown==0)CastSpell=gHasSpell[SpellType=SpellTypeRight];//Will cast right spell
-          }
-        }
-        
-        if(CastSpell){
-          CastSpell=0;//Reset the CastSpell flag
-          if(gSpellStock[SpellType]){
-            Cooldown=gSpellCooldown[SpellType];//Set the Cooldown counter
-            gSpellStock[SpellType]--;
-            gProjectileList[gNumberOfProjectiles][0]=gPlayerX;
-            gProjectileList[gNumberOfProjectiles][1]=gPlayerY;
-            gProjectileList[gNumberOfProjectiles][5]=ScreenX+MouseX;
-            gProjectileList[gNumberOfProjectiles][6]=ScreenY+MouseY;
-            gProjectileList[gNumberOfProjectiles][8]=SpellType;
-            gProjectileList[gNumberOfProjectiles][9]=0;
-            computeProjectileVelocityAndSteps(gNumberOfProjectiles);
-            gProjectileList[gNumberOfProjectiles][7]=computeProjectileDirection(gNumberOfProjectiles);
-            gPlayerOrientation=gPlayerDirection[gProjectileList[gNumberOfProjectiles][7]];
-            gNumberOfProjectiles++;
-            #ifdef Audio
-            // Play the firing sound. This is just a test, since we only have two sounds right now.
-            if(SpellType == eFire)
-              playSound(gSoundFire, 0);
-            else if(SpellType == eIce)
-              playSound(gSoundIce, 0);
-            #endif
-          }
-        }
-        
-        if(movePlayer()){
-          PlayerFrame+=2;if(PlayerFrame>=90)PlayerFrame=10;//cycle animation frames PlayerFrame/10 in [1,8]
-        }
-        else{
-          PlayerFrame=8;// PlayerFrame/10 = 0 --> static frame
-        }
-        centreScreenOnPlayer(&ScreenX,&ScreenY);
-        
-        moveProjectiles();
-        
-        SDL_RenderClear(gRenderer);//Clear screen
-        renderMap(ScreenX,ScreenY);
-        
-        for(i=0;i<gNumberOfEnemies;i++){
-          if(gEnemyList[i][7]==0)
-            renderEnemy(ScreenX,ScreenY,1,1,i);//render the enemy if it was not hit
-          else
-            gEnemyList[i][7]--;
-          
-          if(gEnemyList[i][6]==0){//Enemy cooldown
-            makeEnemyShoot(i);
-            gEnemyList[i][6]=gSpellCooldown[4];
-            }
-          else gEnemyList[i][6]--;
-        }
-        
-        renderProjectiles(ScreenX,ScreenY);
-        if(gPlayerSkipFrames==0)
-          renderPlayer(ScreenX,ScreenY,PlayerFrame/10,gPlayerOrientation);//render the player if it was not hit
-        else
-          gPlayerSkipFrames--;
-        
-        if(Hello>0){
-          gTextX=gPlayerX/10+12-ScreenX;
-          gTextY=gPlayerY/10-45-ScreenY;
-          renderText(gTextX+5,"Hello FlyingJester !\n\nHow are you doing ?");
-          Hello-=DELAY_BETWEEN_FRAMES;
-        }
-        
-        /*if(gHasSpell[0]==0&&Hello<=0){//Example on how to add a spell
-          gHasSpell[0]=1;
-          KnownSpells++;
-        }
-        */
-        
-        if(gPlayerHP>=0)renderHP(gPlayerHP,gMaxHP);
-        if(KnownSpells)renderSpellInterface(SpellTypeLeft,SpellTypeRight);
-        SDL_RenderPresent(gRenderer);//Update screen
-        if(Cooldown)Cooldown--;//lower Cooldown if it is non-zero
-        
-        ElapsedTime=SDL_GetTicks()-LastUpdate;
-        if(ElapsedTime<DELAY_BETWEEN_FRAMES){//Enforce a constant delay between frames
-          SDL_Delay(DELAY_BETWEEN_FRAMES-ElapsedTime);
-        }
+        MainLoopIsRunning=displayTitleScreen();
+        if(MainLoopIsRunning)MainLoopIsRunning=play();
       }
     }
   }
