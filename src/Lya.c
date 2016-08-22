@@ -112,8 +112,8 @@ int gProjectileObstacle[1024]={//gProjectileObstacle[TileIndex] = 1 if TileIndex
 int gHasSpell[NUMBER_OF_SPELLS]={0};//Spells available to the player
 int gSpellStock[NUMBER_OF_SPELLS]={0};//Number of spells the player has in stock for each spell
 int gMaxSpellStock[NUMBER_OF_SPELLS]={200,400,200,200,200,200};//Maximum stock for each spell
-int gSpellSpeed[NUMBER_OF_SPELLS]={120,180,100,180,150,170};//speed in tenths of pixels per frame
-int gSpellCooldown[NUMBER_OF_SPELLS]={8,5,12,15,10,60};//spell cooldown in frames
+int gProjectileSpeed[NUMBER_OF_SPELLS+1]={120,180,100,180,150,170,100};//speed in tenths of pixels per frame
+int gProjectileCooldown[NUMBER_OF_SPELLS+1]={8,5,12,15,10,60,20};//Projectile cooldown in frames
 SDL_Window *gWindow=NULL;//The window we'll be rendering to
 SDL_Renderer *gRenderer=NULL;//The window renderer
 SDL_Texture *gTextureTiles=NULL;//Tile sheet texture
@@ -595,19 +595,19 @@ void renderMap(int ScreenX,int ScreenY){
 void renderProjectiles(int ScreenX,int ScreenY){
   int i;
   SDL_Rect SrcRect;//source rectangle
-  SrcRect.w=16;
-  SrcRect.h=16;
+  SrcRect.w=32;
+  SrcRect.h=32;
   SDL_Rect DstRect;//destination rectangle
-  DstRect.w=16;
-  DstRect.h=16;
+  DstRect.w=SrcRect.w;
+  DstRect.h=SrcRect.h;
   
   SDL_RenderCopy(gRenderer,gTexturePlayer,&SrcRect,&DstRect);
   
   for(i=0;i<gNumberOfProjectiles;i++){
-    SrcRect.x=16*gProjectileList[i][7];//select the projectile sprite according to its Direction
-    SrcRect.y=16*gProjectileList[i][8];//select the projectile sprite according to its Type
-    DstRect.x=gProjectileList[i][0]/10-8-ScreenX;
-    DstRect.y=gProjectileList[i][1]/10-8-ScreenY;
+    SrcRect.x=32*gProjectileList[i][7];//select the projectile sprite according to its Direction
+    SrcRect.y=32*gProjectileList[i][8];//select the projectile sprite according to its Type
+    DstRect.x=gProjectileList[i][0]/10-16-ScreenX;
+    DstRect.y=gProjectileList[i][1]/10-16-ScreenY;
     SDL_RenderCopy(gRenderer,gTextureProjectiles,&SrcRect,&DstRect);//Render projectile to screen
   }
 }
@@ -649,21 +649,21 @@ void renderSpellInterface(int SpellTypeLeft,int SpellTypeRight){
   {//Render the two active spells
     SDL_Rect SrcRect;//source rectangle
     SrcRect.x=0;
-    SrcRect.w=16;
-    SrcRect.h=16;
+    SrcRect.w=32;
+    SrcRect.h=32;
     SDL_Rect DstRect;//destination rectangle
-    DstRect.y=OffsetY+2;
-    DstRect.w=16;
-    DstRect.h=16;
+    DstRect.y=OffsetY-6;
+    DstRect.w=SrcRect.w;
+    DstRect.h=SrcRect.h;
     
     if(SpellTypeLeft<NUMBER_OF_SPELLS){
-      SrcRect.y=16*SpellTypeLeft;
-      DstRect.x=SCREEN_WIDTH-90;
+      SrcRect.y=32*SpellTypeLeft;
+      DstRect.x=SCREEN_WIDTH-98;
       SDL_RenderCopy(gRenderer,gTextureProjectiles,&SrcRect,&DstRect);//Render Left spell
     }
     if(SpellTypeRight<NUMBER_OF_SPELLS){
-      SrcRect.y=16*SpellTypeRight;
-      DstRect.x=SCREEN_WIDTH-65;
+      SrcRect.y=32*SpellTypeRight;
+      DstRect.x=SCREEN_WIDTH-73;
       SDL_RenderCopy(gRenderer,gTextureProjectiles,&SrcRect,&DstRect);//Render Right spell
     }
     
@@ -677,18 +677,18 @@ void renderSpellInterface(int SpellTypeLeft,int SpellTypeRight){
   
   {//render spell stock info
     SDL_Rect SrcRect;//source rectangle
-    SrcRect.x=272;
+    SrcRect.x=512;
     SrcRect.w=8;
     SrcRect.h=8;
     SDL_Rect DstRect;//destination rectangle
     DstRect.x=SCREEN_WIDTH-42;
     DstRect.y=OffsetY;
-    DstRect.w=8;
-    DstRect.h=8;
+    DstRect.w=SrcRect.w;
+    DstRect.h=SrcRect.h;
     
     for(i=0;i<NUMBER_OF_SPELLS;i++){
       if(gHasSpell[i]){
-        SrcRect.y=16*i;
+        SrcRect.y=16+32*i;
         SDL_RenderCopy(gRenderer,gTextureProjectiles,&SrcRect,&DstRect);//Render projectile to screen
         renderDigit(DstRect.x+9,DstRect.y,gSpellStock[i]/100);
         renderDigit(DstRect.x+17,DstRect.y,(gSpellStock[i]/10)%10);
@@ -989,7 +989,7 @@ void computeProjectileVelocityAndSteps(int ProjectileIndex){
   float DistanceSquare;
   DistanceSquare=(float)DeltaX*(float)DeltaX+(float)DeltaY*(float)DeltaY;
   
-  gProjectileList[ProjectileIndex][4]=((int)(sqrt(DistanceSquare)))/gSpellSpeed[gProjectileList[ProjectileIndex][8]];//Steps
+  gProjectileList[ProjectileIndex][4]=((int)(sqrt(DistanceSquare)))/gProjectileSpeed[gProjectileList[ProjectileIndex][8]];//Steps
   if(gProjectileList[ProjectileIndex][4]){//This if prevents dividing by zero
     gProjectileList[ProjectileIndex][2]=DeltaX/gProjectileList[ProjectileIndex][4];//Velocity X
     gProjectileList[ProjectileIndex][3]=DeltaY/gProjectileList[ProjectileIndex][4];//Velocity Y
@@ -1064,7 +1064,7 @@ void makeEnemyShoot(int EnemyIndex){
   gProjectileList[gNumberOfProjectiles][1]=gEnemyList[EnemyIndex][1];
   gProjectileList[gNumberOfProjectiles][5]=gPlayerX/10;
   gProjectileList[gNumberOfProjectiles][6]=gPlayerY/10;
-  gProjectileList[gNumberOfProjectiles][8]=0;
+  gProjectileList[gNumberOfProjectiles][8]=6;
   gProjectileList[gNumberOfProjectiles][9]=1;
   computeProjectileVelocityAndSteps(gNumberOfProjectiles);
   gProjectileList[gNumberOfProjectiles][7]=computeProjectileDirection(gNumberOfProjectiles);
@@ -1227,7 +1227,7 @@ int play(void){
     if(CastSpell){
       CastSpell=0;//Reset the CastSpell flag
       if(gSpellStock[SpellType]){
-        Cooldown=gSpellCooldown[SpellType];//Set the Cooldown counter
+        Cooldown=gProjectileCooldown[SpellType];//Set the Cooldown counter
         gSpellStock[SpellType]--;
         gProjectileList[gNumberOfProjectiles][0]=gPlayerX;
         gProjectileList[gNumberOfProjectiles][1]=gPlayerY;
@@ -1270,7 +1270,7 @@ int play(void){
       
       if(gEnemyList[i][6]==0){//Enemy cooldown
         makeEnemyShoot(i);
-        gEnemyList[i][6]=gSpellCooldown[4];
+        gEnemyList[i][6]=gProjectileCooldown[6];
         }
       else gEnemyList[i][6]--;
     }
