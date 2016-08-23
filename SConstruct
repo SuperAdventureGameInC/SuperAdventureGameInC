@@ -9,5 +9,7 @@ if os.name == "posix":
 
 turbojson = SConscript(dirs=["TurboJSON"], exports=["environment"])
 
+environment.Append(CPPPATH = os.getcwd())
+
 # SConscript executes the build script specified.
 SConscript(dirs=["src"], exports=["environment", "turbojson"])
