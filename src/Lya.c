@@ -1335,7 +1335,7 @@ int main(int argc,char*argv[]){
         MainLoopIsRunning=displayTitleScreen();
         if(MainLoopIsRunning){
             struct Map map;
-            loadMap("field_test.json", gRenderer, NULL);
+            loadMap("res/field_test.json", gRenderer, NULL);
             MainLoopIsRunning=play();
         }
       }
