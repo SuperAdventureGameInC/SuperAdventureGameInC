@@ -7,5 +7,7 @@ environment = Environment(ENV = os.environ)
 if os.name == "posix":
 	environment.Append(CFLAGS = " -g -Werror ", LINKFLAGS = " -g ")
 
+turbojson = SConscript(dirs=["TurboJSON"], exports=["environment"])
+
 # SConscript executes the build script specified.
-SConscript(dirs=["src"], exports=["environment"])
+SConscript(dirs=["src"], exports=["environment", "turbojson"])

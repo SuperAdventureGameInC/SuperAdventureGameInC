@@ -1,8 +1,8 @@
 # Import the environment from the calling build script
-Import("environment")
+Import("environment turbojson")
 
 # Create an array of source file names to compile
 source = ["Lya.c", "Audio.c"]
 
 # Build a program using the environment. The first argument is the name of the program to build.
-environment.Program("adventure", source, LIBS = ["SDL2", "SDL2_image", "m", "ogg", "opus", "openal"])
+environment.Program("adventure", source, LIBS = ["SDL2", "SDL2_image", "m", "ogg", "opus", "openal", turbojson])
