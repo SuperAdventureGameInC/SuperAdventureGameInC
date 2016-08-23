@@ -1,0 +1,3 @@
+[submodule "TurboJSON"]
+	path = TurboJSON
+	url = https://github.com/FlyingJester/TurboJSON.git
