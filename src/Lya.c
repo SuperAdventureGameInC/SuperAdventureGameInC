@@ -15,6 +15,8 @@
 #include "Audio.h"
 #endif
 
+#include "Map.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -1331,7 +1333,11 @@ int main(int argc,char*argv[]){
       int MainLoopIsRunning=1;//Main loop running flag
       while(MainLoopIsRunning){//While application is running
         MainLoopIsRunning=displayTitleScreen();
-        if(MainLoopIsRunning)MainLoopIsRunning=play();
+        if(MainLoopIsRunning){
+            struct Map map;
+            loadMap("field_test.json", gRenderer, NULL);
+            MainLoopIsRunning=play();
+        }
       }
     }
   }
