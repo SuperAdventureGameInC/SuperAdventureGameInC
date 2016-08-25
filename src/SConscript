@@ -6,6 +6,13 @@ Import("environment turbojson use_audio")
 # Create an array of source file names to compile
 source = ["Lya.c", "Map.c"]
 
+libs = [
+    "SDL2",
+    "SDL2_image",
+    "m",
+    turbojson    
+]
+
 # Determine which bufferfile implementation to use
 l_env = environment.Clone()
 configure = Configure(l_env)
@@ -15,14 +22,11 @@ elif os.name != "nt" and configure.CheckCHeader("unistd.h") and configure.CheckC
     source.append("bufferfile_unix.c")
 else:
     source.append("bufferfile_c.c")
-l_env = configure.Finish()
 
-libs = [
-    "SDL2",
-    "SDL2_image",
-    "m",
-    turbojson    
-]
+if os.name == "nt" and configure.CheckLib("mingw32"):
+    libs += ["mingw32"]
+
+l_env = configure.Finish()
 
 build_env = environment.Clone()
 if use_audio:
