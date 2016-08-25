@@ -1,10 +1,10 @@
 import os
 
 # Import the environment from the calling build script
-Import("environment turbojson")
+Import("environment turbojson use_audio")
 
 # Create an array of source file names to compile
-source = ["Lya.c", "Audio.c", "Map.c"]
+source = ["Lya.c", "Map.c"]
 
 # Determine which bufferfile implementation to use
 l_env = environment.Clone()
@@ -17,5 +17,18 @@ else:
     source.append("bufferfile_c.c")
 l_env = configure.Finish()
 
+libs = [
+    "SDL2",
+    "SDL2_image",
+    "m",
+    turbojson    
+]
+
+build_env = environment.Clone()
+if use_audio:
+    libs += ["ogg", "opus", "openal"]
+    build_env.Append(CPPDEFINES="AUDIO=1")
+    source += ["Audio.c"]
+
 # Build a program using the environment. The first argument is the name of the program to build.
-environment.Program("adventure", source, LIBS = ["SDL2", "SDL2_image", "m", "ogg", "opus", "openal", turbojson])
+build_env.Program("adventure", source, LIBS = libs)
