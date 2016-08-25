@@ -9,9 +9,9 @@ source = ["Lya.c", "Map.c"]
 # Determine which bufferfile implementation to use
 l_env = environment.Clone()
 configure = Configure(l_env)
-if configure.CheckCHeader("sys/mman.h"):
+if os.name != "nt" and configure.CheckCHeader("sys/mman.h"):
     source.append("bufferfile_mmap.c")
-elif configure.CheckCHeader("unistd.h") and configure.CheckCHeader("sys/stat.h"):
+elif os.name != "nt" and configure.CheckCHeader("unistd.h") and configure.CheckCHeader("sys/stat.h"):
     source.append("bufferfile_unix.c")
 else:
     source.append("bufferfile_c.c")
