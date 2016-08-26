@@ -1,4 +1,5 @@
 import os
+import sys
 
 # Import the environment from the calling build script
 Import("environment turbojson use_audio")
@@ -22,10 +23,6 @@ elif os.name != "nt" and configure.CheckCHeader("unistd.h") and configure.CheckC
     source.append("bufferfile_unix.c")
 else:
     source.append("bufferfile_c.c")
-
-if os.name == "nt" and configure.CheckLib("mingw32"):
-    libs += ["mingw32"]
-
 l_env = configure.Finish()
 
 build_env = environment.Clone()
@@ -33,6 +30,9 @@ if use_audio:
     libs += ["ogg", "opus", "openal"]
     build_env.Append(CPPDEFINES="AUDIO=1")
     source += ["Audio.c"]
+
+if os.name == "nt" or "msys" in sys.platform:
+    build_env.Append(LINKFLAGS="-mconsole")
 
 # Build a program using the environment. The first argument is the name of the program to build.
 build_env.Program("adventure", source, LIBS = libs)
