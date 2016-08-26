@@ -8,6 +8,7 @@ Import("environment turbojson use_audio")
 source = ["Lya.c", "Map.c"]
 
 libs = [
+    "SDL2main",
     "SDL2",
     "SDL2_image",
     "m",
@@ -15,6 +16,7 @@ libs = [
 ]
 
 # Determine which bufferfile implementation to use
+build_env = environment.Clone()
 l_env = environment.Clone()
 configure = Configure(l_env)
 if os.name != "nt" and configure.CheckCHeader("sys/mman.h"):
@@ -23,9 +25,13 @@ elif os.name != "nt" and configure.CheckCHeader("unistd.h") and configure.CheckC
     source.append("bufferfile_unix.c")
 else:
     source.append("bufferfile_c.c")
+
+if os.name == "nt" and configure.CheckLib("mingw32"):
+    libs = ["mingw32"] + libs
+    build_env.Append(LINKFLAGS = "-mwindows")
+
 l_env = configure.Finish()
 
-build_env = environment.Clone()
 if use_audio:
     libs += ["ogg", "opus", "openal"]
     build_env.Append(CPPDEFINES="AUDIO=1")

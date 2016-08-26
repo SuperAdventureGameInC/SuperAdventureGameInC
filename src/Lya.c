@@ -1343,10 +1343,3 @@ int main(int argc,char*argv[]){
   closeSDL();//Free resources and close SDL
   return EXIT_SUCCESS;
 }
-
-#ifdef _WIN32
-int WinMain(int argc, char *argv[]){
-    return main(argc, argv);
-}
-#endif
-
