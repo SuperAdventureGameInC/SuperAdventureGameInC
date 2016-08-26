@@ -31,8 +31,5 @@ if use_audio:
     build_env.Append(CPPDEFINES="AUDIO=1")
     source += ["Audio.c"]
 
-if os.name == "nt" or "msys" in sys.platform:
-    build_env.Append(LINKFLAGS="-mconsole")
-
 # Build a program using the environment. The first argument is the name of the program to build.
 build_env.Program("adventure", source, LIBS = libs)
