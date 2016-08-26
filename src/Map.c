@@ -61,7 +61,7 @@ static bool loadTileset(struct Tileset *tileset, SDL_Renderer *renderer, const s
         
         tileset->tileWidth = (int)tileWidth->value.number;
         tileset->tileHeight = (int)tileHeight->value.number;
-        tileset->atlasWidth = (int)tileHeight->value.number;
+        tileset->atlasWidth = (int)atlasWidth->value.number;
         tileset->atlasHeight = ((int)tileCount->value.number) / tileset->atlasWidth;
 
         if(imagePath->length >= 0xFF - 1){
@@ -312,6 +312,7 @@ struct Map *loadMap(const char *path, SDL_Renderer *renderer, struct Map *reuse_
                     for(e = 0; e < i; e++){
                         destroyLayer(map->layers + e);
                     }
+                    free(map->layers);
                     goto error_free_tilesets;
                 }
             }
@@ -343,5 +344,48 @@ ending:
 void destroyMap(struct Map *map);
 
 // Characters are only obstructed by layer 0.
-bool isObstructed(const struct Map *map, int x, int y);
-void drawMap(const struct Map *map, SDL_Renderer *renderer, int x, int y);
+bool isObstructed(const struct Map *map, int pixelX, int pixelY, unsigned width, unsigned height);
+bool isTileObstructed(const struct Map *map, int tileX, int tileY);
+
+void drawMap(const struct Map *map, SDL_Renderer *renderer, int x, int y){
+    unsigned i;
+    if(map->numLayers == 0)
+        return;
+    drawLayer(map->tilesets, map->layers, renderer, x, y);
+    // TODO: draw entities
+    for(i = 1; i < map->numLayers; i++){
+        drawLayer(map->tilesets, map->layers + i, renderer, x, y);
+    }
+}
+
+void drawLayer(const struct Tileset *tileset, const struct Layer *layer,
+    SDL_Renderer *renderer, int screenX, int screenY){
+
+    // TODO: cull map drawing to screen.
+    unsigned x, y;
+    const int drawX = screenX - layer->offsetX, drawY = screenY - layer->offsetY;
+    SDL_Rect source, dest;
+
+    // We only need to set these values once.
+    source.w = tileset->tileWidth;
+    source.h = tileset->tileHeight;
+    dest.w = tileset->tileWidth;
+    dest.h = tileset->tileHeight;
+
+    for(y = 0; y < layer->height; y++){
+        for(x = 0; x < layer->width; x++){
+            const unsigned raw_index = layer->tileIndices[x + (y * layer->width)],
+                index = raw_index - 1;
+            if(raw_index == 0 || raw_index - 1 >= tileset->atlasWidth * tileset->atlasHeight)
+                continue;
+
+            source.x = tileset->tileWidth * (index % tileset->atlasWidth);
+            source.y = tileset->tileHeight * (index / tileset->atlasWidth);
+
+            dest.x = (x * tileset->tileWidth) + drawX;
+            dest.y = (y * tileset->tileHeight) + drawY;
+
+            SDL_RenderCopy(renderer, tileset->image, &source, &dest);
+        }
+    }
+}
