@@ -1308,9 +1308,8 @@ int play(void){
   }
 }
 
-
 int main(int argc,char*argv[]){
-  
+
   #ifdef AUDIO
   struct AudioCtx *const audioCtx = createAudioCtx();
   if(!audioCtx){
