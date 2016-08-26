@@ -30,5 +30,9 @@ struct Map *loadMap(const char *path, SDL_Renderer *renderer, struct Map *reuse_
 void destroyMap(struct Map *map);
 
 // Characters are only obstructed by layer 0.
-bool isObstructed(const struct Map *map, int x, int y);
+bool isObstructed(const struct Map *map, int pixelX, int pixelY, unsigned width, unsigned height);
+bool isTileObstructed(const struct Map *map, int tileX, int tileY);
+
 void drawMap(const struct Map *map, SDL_Renderer *renderer, int x, int y);
+void drawLayer(const struct Tileset *tilesets, const struct Layer *layer,
+    SDL_Renderer *renderer, int x, int y);

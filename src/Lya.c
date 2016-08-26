@@ -1241,7 +1241,7 @@ int play(void){
         gProjectileList[gNumberOfProjectiles][7]=computeProjectileDirection(gNumberOfProjectiles);
         gPlayerOrientation=gPlayerDirection[gProjectileList[gNumberOfProjectiles][7]];
         gNumberOfProjectiles++;
-        #ifdef Audio
+        #ifdef AUDIO
         // Play the firing sound. This is just a test, since we only have two sounds right now.
         if(SpellType == eFire)
           playSound(gSoundFire, 0);
@@ -1330,11 +1330,11 @@ int main(int argc,char*argv[]){
     }
     else{
       int MainLoopIsRunning=1;//Main loop running flag
+      struct Map *map =
+          loadMap("res/field_test.json", gRenderer, NULL);
       while(MainLoopIsRunning){//While application is running
         MainLoopIsRunning=displayTitleScreen();
         if(MainLoopIsRunning){
-            struct Map map;
-            loadMap("res/field_test.json", gRenderer, NULL);
             MainLoopIsRunning=play();
         }
       }
