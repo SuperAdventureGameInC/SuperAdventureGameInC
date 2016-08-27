@@ -5,7 +5,7 @@ import sys
 Import("environment turbojson use_audio")
 
 # Create an array of source file names to compile
-source = ["Lya.c", "Map.c"]
+source = ["Lya.c", "Map.c", "Entity.c"]
 
 libs = [
     "SDL2main",
