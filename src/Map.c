@@ -10,6 +10,32 @@
 #include <stdlib.h>
 #include <assert.h>
 
+struct Tileset {
+    unsigned tileWidth, tileHeight;
+    unsigned atlasWidth, atlasHeight;
+    bool *obstruction;
+
+    char imagePath[0xFF];
+    SDL_Texture *image;
+};
+
+struct Layer {
+    unsigned width, height;
+    int offsetX, offsetY;
+    unsigned *tileIndices;
+};
+
+struct Map {
+    unsigned numLayers;
+    struct Layer *layers;
+    
+    unsigned numTilesets;
+    struct Tileset *tilesets;
+};
+
+void drawLayer(const struct Tileset *tilesets, const struct Layer *layer,
+    SDL_Renderer *renderer, int x, int y);
+
 // Returns the key of the specified name, or NULL if it does not exist
 static const struct Turbo_Value *jsonFindObjectValue(const struct Turbo_Value *value, const char *key){
     const unsigned keyLen = strlen(key);
