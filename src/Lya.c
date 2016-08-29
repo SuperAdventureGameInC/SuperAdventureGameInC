@@ -16,6 +16,7 @@
 #endif
 
 #include "Map.h"
+#include "Entity.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,14 +32,16 @@
 #define MAX_ROW 27//Needs to be greater or equal to 18 (SCREEN_HEIGHT/32)
 #define MAX_COLUMN 31//Needs to be greater or equal to 25 (SCREEN_WIDTH/32)
 #define DELAY_BETWEEN_FRAMES 20//Delay between frames in millisecond
-#define PLAYER_SPEED 60//player speed in tenths of pixels per frame = speed [pixels per second] * delay between frames [millisecond] / 100
+// #define PLAYER_SPEED 60//player speed in tenths of pixels per frame = speed [pixels per second] * delay between frames [millisecond] / 100
 #define MAX_PROJECTILE 1000//maximum number of projectiles
 #define PROJECTILE_INFO 10//number of information stored per projectile
 #define MAX_ENEMY 100//maximum number of enemies
 #define ENEMY_INFO 8//number of information stored per enemy
 #define NUMBER_OF_SPELLS 6//number of spells in the game
 
-const int gPlayerSpeedDiagonal=PLAYER_SPEED*71/100;
+struct Entity gPlayer;
+
+//const int gPlayerSpeedDiagonal=PLAYER_SPEED*71/100;
 Uint16 gMap[MAX_ROW][MAX_COLUMN]={//gMap[i][j] is the index of the tile to display at (row=i, column=j).
   705,705,705,705,705,705,705,705,705, 73, 74, 75,705,705,705,644,705,645,644,705,705,705,705,705,705,705,705,705,643,643,643,
   705,644,644,705,705,705,705,705,705, 73, 74, 75,705,645,644,705,644,644,705,644,705,705,705,705,705,705,705,705,642,643,643,
@@ -68,7 +71,7 @@ Uint16 gMap[MAX_ROW][MAX_COLUMN]={//gMap[i][j] is the index of the tile to displ
   705,705,705,705,705,705,705,705,705,705,705, 73, 74, 75,770,643,643,643,643,643,643,643,643,643,643,643,643,704,705,705,705,
   705,705,705,705,705,705,705,705,705,705,705, 73, 74, 75,834,643,643,643,643,643,643,643,643,643,643,643,643,704,705,705,705};
 int gTextX,gTextY;//(x,y) coordinate of upper left corner of text to render
-int gPlayerX,gPlayerY;//10 times the (x,y) coordinate of upper left corner of the player sprite
+// int gPlayerX,gPlayerY;//10 times the (x,y) coordinate of upper left corner of the player sprite
 int gPlayerOrientation;//player orientation: 0 = UP or UP_LEFT, 1 = LEFT or DOWN_LEFT, 2 = DOWN or DOWN_RIGHT, 3 = RIGHT or UP_RIGHT
 int gPlayerHP,gPlayerMaxHP;
 int gPlayerSkipFrames;//To blink if the player get hit
@@ -119,7 +122,7 @@ int gProjectileCooldown[NUMBER_OF_SPELLS+1]={8,5,12,15,10,60,20};//Projectile co
 SDL_Window *gWindow=NULL;//The window we'll be rendering to
 SDL_Renderer *gRenderer=NULL;//The window renderer
 SDL_Texture *gTextureTiles=NULL;//Tile sheet texture
-SDL_Texture *gTexturePlayer=NULL;//Player sheet texture
+//SDL_Texture *gTexturePlayer=NULL;//Player sheet texture
 SDL_Texture *gTextureEnemy=NULL;//Enemy sheet texture
 SDL_Texture *gTextureProjectiles=NULL;//Projectiles sheet texture
 SDL_Texture *gTextureLife=NULL;//Life meter texture
@@ -191,28 +194,6 @@ int loadTiles(void){
   }
   
   if(gTextureTiles==NULL){
-    printf("Failed to load texture image!\n");
-    return 1;
-  }
-  
-  return 0;
-}
-
-int loadPlayer(void){
-  SDL_Surface *loadedSurface=IMG_Load("res/Player.png");//Load PNG texture
-  if(loadedSurface==NULL){
-    printf("Unable to load image %s! SDL_image Error: %s\n","Player.png",IMG_GetError());
-  }
-  else{//Create texture from surface pixels
-    SDL_SetColorKey(loadedSurface,SDL_TRUE,SDL_MapRGB(loadedSurface->format,0,255,255));//Set the transparent pixel to cyan
-    gTexturePlayer=SDL_CreateTextureFromSurface(gRenderer,loadedSurface);
-    if(gTexturePlayer==NULL){
-      printf("Unable to create texture from %s! SDL Error: %s\n","Player.png",SDL_GetError());
-    }
-    SDL_FreeSurface(loadedSurface);//Get rid of old loaded surface
-  }
-  
-  if(gTexturePlayer==NULL){
     printf("Failed to load texture image!\n");
     return 1;
   }
@@ -373,7 +354,7 @@ int loadAudio(struct AudioCtx *ctx){
 
 void closeSDL(void){//Frees media and shuts down SDL
   SDL_DestroyTexture(gTextureTiles);gTextureTiles=NULL;//Free loaded tile
-  SDL_DestroyTexture(gTexturePlayer);gTexturePlayer=NULL;//Free loaded player
+//  SDL_DestroyTexture(gTexturePlayer);gTexturePlayer=NULL;//Free loaded player
   SDL_DestroyTexture(gTextureEnemy);gTextureEnemy=NULL;//Free loaded enemy
   SDL_DestroyTexture(gTextureProjectiles);gTextureProjectiles=NULL;//Free loaded projectiles
   SDL_DestroyTexture(gTextureLife);gTextureLife=NULL;//Free loaded life
@@ -603,7 +584,7 @@ void renderProjectiles(int ScreenX,int ScreenY){
   DstRect.w=SrcRect.w;
   DstRect.h=SrcRect.h;
   
-  SDL_RenderCopy(gRenderer,gTexturePlayer,&SrcRect,&DstRect);
+  SDL_RenderCopy(gRenderer,getSpriteset(&gPlayer),&SrcRect,&DstRect);
   
   for(i=0;i<gNumberOfProjectiles;i++){
     SrcRect.x=32*gProjectileList[i][7];//select the projectile sprite according to its Direction
@@ -622,11 +603,11 @@ void renderPlayer(int ScreenX,int ScreenY,int Frame,int Orientation){
   SrcRect.w=64;
   SrcRect.h=64;
   SDL_Rect DstRect;//destination rectangle
-  DstRect.x=gPlayerX/10-32-ScreenX;
-  DstRect.y=(gPlayerY+HALF_SIDE_PLAYER_COLLISION_BOX)/10-64-ScreenY;
+  DstRect.x=gPlayer.x/10-32-ScreenX;
+  DstRect.y=(gPlayer.y+HALF_SIDE_PLAYER_COLLISION_BOX)/10-64-ScreenY;
   DstRect.w=64;
   DstRect.h=64;
-  SDL_RenderCopy(gRenderer,gTexturePlayer,&SrcRect,&DstRect);//Render player to screen
+  SDL_RenderCopy(gRenderer,getSpriteset(&gPlayer),&SrcRect,&DstRect);//Render player to screen
 }
 
 void renderEnemy(int ScreenX,int ScreenY,int Frame,int Orientation,int EnemyIndex){
@@ -729,77 +710,77 @@ void renderHP(int HP,int MaxHP){
 int moveRight(int Speed){
 //Moves right and corrects gPlayerX for collision if needed. Returns 1 if the coordinate changed, 0 otherwise.
   int DestinationRow,DestinationColumn,RemainderRow,RowOffsetOfAdjacentTileToCheck,Boundary;
-  int InitialCoordinate=gPlayerX;
-  gPlayerX+=Speed;
+  int InitialCoordinate=gPlayer.x;
+  gPlayer.x+=Speed;
   
-  if(gPlayerX>MAX_COLUMN*320-BOUNDARY_OFFSET)gPlayerX=MAX_COLUMN*320-BOUNDARY_OFFSET;
-  DestinationRow=gPlayerY/320;
-  DestinationColumn=gPlayerX/320;
-  RemainderRow=gPlayerY%320;
+  if(gPlayer.x>MAX_COLUMN*320-BOUNDARY_OFFSET)gPlayer.x=MAX_COLUMN*320-BOUNDARY_OFFSET;
+  DestinationRow=gPlayer.y/320;
+  DestinationColumn=gPlayer.x/320;
+  RemainderRow=gPlayer.y%320;
   RowOffsetOfAdjacentTileToCheck=(RemainderRow>320-HALF_SIDE_PLAYER_COLLISION_BOX)-(RemainderRow<HALF_SIDE_PLAYER_COLLISION_BOX);//-1 if we have to check the tile above, is 0 if we don't have to check a second adjacent tile, 1 if we have to check the tile below
   if(DestinationColumn<MAX_COLUMN && ( gMovementObstacle[gMap[DestinationRow][DestinationColumn+1]] || gMovementObstacle[gMap[DestinationRow+RowOffsetOfAdjacentTileToCheck][DestinationColumn+1]]) ){
     Boundary=320*(DestinationColumn+1)-BOUNDARY_OFFSET;
-    if(gPlayerX>Boundary)gPlayerX=Boundary;
+    if(gPlayer.x>Boundary)gPlayer.x=Boundary;
   }
   
-  return gPlayerX!=InitialCoordinate;
+  return gPlayer.x!=InitialCoordinate;
 }
 
 int moveLeft(int Speed){
 //Moves left and corrects gPlayerX for collision if needed. Returns 1 if the coordinate changed, 0 otherwise.
   int DestinationRow,DestinationColumn,RemainderRow,RowOffsetOfAdjacentTileToCheck,Boundary;
-  int InitialCoordinate=gPlayerX;
-  gPlayerX-=Speed;
+  int InitialCoordinate=gPlayer.x;
+  gPlayer.x-=Speed;
   
-  if(gPlayerX<BOUNDARY_OFFSET)gPlayerX=BOUNDARY_OFFSET;
-  DestinationRow=gPlayerY/320;
-  DestinationColumn=gPlayerX/320;
-  RemainderRow=gPlayerY%320;
+  if(gPlayer.x<BOUNDARY_OFFSET)gPlayer.x=BOUNDARY_OFFSET;
+  DestinationRow=gPlayer.y/320;
+  DestinationColumn=gPlayer.x/320;
+  RemainderRow=gPlayer.y%320;
   RowOffsetOfAdjacentTileToCheck=(RemainderRow>320-HALF_SIDE_PLAYER_COLLISION_BOX)-(RemainderRow<HALF_SIDE_PLAYER_COLLISION_BOX);//-1 if we have to check the tile above, is 0 if we don't have to check an adjacent tile, 1 if we have to check the tile below
   if(DestinationColumn>0 && ( gMovementObstacle[gMap[DestinationRow][DestinationColumn-1]] || gMovementObstacle[gMap[DestinationRow+RowOffsetOfAdjacentTileToCheck][DestinationColumn-1]]) ){
     Boundary=320*DestinationColumn+BOUNDARY_OFFSET;
-    if(gPlayerX<Boundary)gPlayerX=Boundary;
+    if(gPlayer.x<Boundary)gPlayer.x=Boundary;
   }
   
-  return gPlayerX!=InitialCoordinate;
+  return gPlayer.x!=InitialCoordinate;
 }
 
 int moveDown(int Speed){
 //Moves down and corrects gPlayerY for collision if needed. Returns 1 if the coordinate changed, 0 otherwise.
   int DestinationRow,DestinationColumn,RemainderColumn,ColumnOffsetOfAdjacentTileToCheck,Boundary;
-  int InitialCoordinate=gPlayerY;
-  gPlayerY+=Speed;
+  int InitialCoordinate=gPlayer.y;
+  gPlayer.y+=Speed;
   
-  if(gPlayerY>MAX_ROW*320-BOUNDARY_OFFSET)gPlayerY=MAX_ROW*320-BOUNDARY_OFFSET;
-  DestinationRow=gPlayerY/320;
-  DestinationColumn=gPlayerX/320;
-  RemainderColumn=gPlayerX%320;
+  if(gPlayer.y>MAX_ROW*320-BOUNDARY_OFFSET)gPlayer.y=MAX_ROW*320-BOUNDARY_OFFSET;
+  DestinationRow=gPlayer.y/320;
+  DestinationColumn=gPlayer.x/320;
+  RemainderColumn=gPlayer.x%320;
   ColumnOffsetOfAdjacentTileToCheck=(RemainderColumn>320-HALF_SIDE_PLAYER_COLLISION_BOX)-(RemainderColumn<HALF_SIDE_PLAYER_COLLISION_BOX);//-1 if we have to check the tile to the left, is 0 if we don't have to check an adjacent tile, 1 if we have to check the tile to the right
   if(DestinationRow<MAX_ROW && ( gMovementObstacle[gMap[DestinationRow+1][DestinationColumn]] || gMovementObstacle[gMap[DestinationRow+1][DestinationColumn+ColumnOffsetOfAdjacentTileToCheck]]) ){
     Boundary=320*(DestinationRow+1)-BOUNDARY_OFFSET;
-    if(gPlayerY>Boundary)gPlayerY=Boundary;
+    if(gPlayer.y>Boundary)gPlayer.y=Boundary;
   }
   
-  return gPlayerY!=InitialCoordinate;
+  return gPlayer.y!=InitialCoordinate;
 }
 
 int moveUp(int Speed){
 //Moves up and corrects gPlayerY for collision if needed. Returns 1 if the coordinate changed, 0 otherwise.
   int DestinationRow,DestinationColumn,RemainderColumn,ColumnOffsetOfAdjacentTileToCheck,Boundary;
-  int InitialCoordinate=gPlayerY;
-  gPlayerY-=Speed;
+  int InitialCoordinate=gPlayer.y;
+  gPlayer.y-=Speed;
   
-  if(gPlayerY<BOUNDARY_OFFSET)gPlayerY=BOUNDARY_OFFSET;
-  DestinationRow=gPlayerY/320;
-  DestinationColumn=gPlayerX/320;
-  RemainderColumn=gPlayerX%320;
+  if(gPlayer.y<BOUNDARY_OFFSET)gPlayer.y=BOUNDARY_OFFSET;
+  DestinationRow=gPlayer.y/320;
+  DestinationColumn=gPlayer.x/320;
+  RemainderColumn=gPlayer.x%320;
   ColumnOffsetOfAdjacentTileToCheck=(RemainderColumn>320-HALF_SIDE_PLAYER_COLLISION_BOX)-(RemainderColumn<HALF_SIDE_PLAYER_COLLISION_BOX);//-1 if we have to check the tile to the left, is 0 if we don't have to check an adjacent tile, 1 if we have to check the tile to the right
   if(DestinationRow>0 && ( gMovementObstacle[gMap[DestinationRow-1][DestinationColumn]] || gMovementObstacle[gMap[DestinationRow-1][DestinationColumn+ColumnOffsetOfAdjacentTileToCheck]]) ){
     Boundary=320*(DestinationRow)+BOUNDARY_OFFSET;
-    if(gPlayerY<Boundary)gPlayerY=Boundary;
+    if(gPlayer.y<Boundary)gPlayer.y=Boundary;
   }
   
-  return gPlayerY!=InitialCoordinate;
+  return gPlayer.y!=InitialCoordinate;
 }
 
 int movePlayer(void){
@@ -817,29 +798,29 @@ int movePlayer(void){
   int MoveResult1,MoveResult2;
   
   if(KeyboardState[SDL_SCANCODE_UP]&&KeyboardState[SDL_SCANCODE_LEFT]){
-    MoveResult1=moveUp(gPlayerSpeedDiagonal);
-    MoveResult2=moveLeft(gPlayerSpeedDiagonal);
+    MoveResult1=moveUp(getDiagonalSpeed(&gPlayer));
+    MoveResult2=moveLeft(getDiagonalSpeed(&gPlayer));
     if(MoveResult1){gPlayerOrientation=0;return 1;}
     if(MoveResult2){gPlayerOrientation=1;return 1;}
     gPlayerOrientation=0;return 0;
   }
   if(KeyboardState[SDL_SCANCODE_DOWN]&&KeyboardState[SDL_SCANCODE_LEFT]){
-    MoveResult1=moveDown(gPlayerSpeedDiagonal);
-    MoveResult2=moveLeft(gPlayerSpeedDiagonal);
+    MoveResult1=moveDown(getDiagonalSpeed(&gPlayer));
+    MoveResult2=moveLeft(getDiagonalSpeed(&gPlayer));
     if(MoveResult2){gPlayerOrientation=1;return 1;}
     if(MoveResult1){gPlayerOrientation=2;return 1;}
     gPlayerOrientation=1;return 0;
   }
   if(KeyboardState[SDL_SCANCODE_DOWN]&&KeyboardState[SDL_SCANCODE_RIGHT]){
-    MoveResult1=moveDown(gPlayerSpeedDiagonal);
-    MoveResult2=moveRight(gPlayerSpeedDiagonal);
+    MoveResult1=moveDown(getDiagonalSpeed(&gPlayer));
+    MoveResult2=moveRight(getDiagonalSpeed(&gPlayer));
     if(MoveResult1){gPlayerOrientation=2;return 1;}
     if(MoveResult2){gPlayerOrientation=3;return 1;}
     gPlayerOrientation=2;return 0;
   }
   if(KeyboardState[SDL_SCANCODE_UP]&&KeyboardState[SDL_SCANCODE_RIGHT]){
-    MoveResult1=moveUp(gPlayerSpeedDiagonal);
-    MoveResult2=moveRight(gPlayerSpeedDiagonal);
+    MoveResult1=moveUp(getDiagonalSpeed(&gPlayer));
+    MoveResult2=moveRight(getDiagonalSpeed(&gPlayer));
     if(MoveResult2){gPlayerOrientation=3;return 1;}
     if(MoveResult1){gPlayerOrientation=0;return 1;}
     gPlayerOrientation=3;return 0;
@@ -847,32 +828,32 @@ int movePlayer(void){
   
   if(KeyboardState[SDL_SCANCODE_UP]){
     gPlayerOrientation=0;
-    return moveUp(PLAYER_SPEED);
+    return moveUp(getSpeed(&gPlayer));
   }
   if(KeyboardState[SDL_SCANCODE_LEFT]){
     gPlayerOrientation=1;
-    return moveLeft(PLAYER_SPEED);
+    return moveLeft(getSpeed(&gPlayer));
   }
   if(KeyboardState[SDL_SCANCODE_DOWN]){
     gPlayerOrientation=2;
-    return moveDown(PLAYER_SPEED);
+    return moveDown(getSpeed(&gPlayer));
   }
   if(KeyboardState[SDL_SCANCODE_RIGHT]){
     gPlayerOrientation=3;
-    return moveRight(PLAYER_SPEED);
+    return moveRight(getSpeed(&gPlayer));
   }
   
   return 0;
 }
 
 void centreScreenOnPlayer(int*ScreenX,int*ScreenY){
-  if(gPlayerX/10<=SCREEN_WIDTH/2)*ScreenX=0;
-  else if(gPlayerX/10>=MAX_COLUMN*32-SCREEN_WIDTH/2)*ScreenX=MAX_COLUMN*32-SCREEN_WIDTH;
-  else *ScreenX=gPlayerX/10-SCREEN_WIDTH/2;
+  if(gPlayer.x/10<=SCREEN_WIDTH/2)*ScreenX=0;
+  else if(gPlayer.x/10>=MAX_COLUMN*32-SCREEN_WIDTH/2)*ScreenX=MAX_COLUMN*32-SCREEN_WIDTH;
+  else *ScreenX=gPlayer.x/10-SCREEN_WIDTH/2;
   
-  if(gPlayerY/10<=SCREEN_HEIGHT/2)*ScreenY=0;
-  else if(gPlayerY/10>=MAX_ROW*32-SCREEN_HEIGHT/2)*ScreenY=MAX_ROW*32-SCREEN_HEIGHT;
-  else *ScreenY=gPlayerY/10-SCREEN_HEIGHT/2;
+  if(gPlayer.y/10<=SCREEN_HEIGHT/2)*ScreenY=0;
+  else if(gPlayer.y/10>=MAX_ROW*32-SCREEN_HEIGHT/2)*ScreenY=MAX_ROW*32-SCREEN_HEIGHT;
+  else *ScreenY=gPlayer.y/10-SCREEN_HEIGHT/2;
 }
 
 void applyProjectileImpact(int TargetType,int ProjectileIndex){
@@ -972,8 +953,8 @@ void moveProjectiles(void){
         }
       }
     if(HasHit==0){
-      DeltaX=gProjectileList[i][0]-gPlayerX;
-      DeltaY=gProjectileList[i][1]-gPlayerY;
+      DeltaX=gProjectileList[i][0]-gPlayer.x;
+      DeltaY=gProjectileList[i][1]-gPlayer.y;
       DestinationColumn=gProjectileList[i][0]/320;
       DestinationRow=gProjectileList[i][1]/320;
       if(gProjectileList[i][9]&&-190<DeltaX&&DeltaX<200&&-460<DeltaY&&DeltaY<140)//Checks if an enemy projectile hits the player
@@ -1064,8 +1045,8 @@ int computeProjectileDirection(int ProjectileIndex){
 void makeEnemyShoot(int EnemyIndex){
   gProjectileList[gNumberOfProjectiles][0]=gEnemyList[EnemyIndex][0];
   gProjectileList[gNumberOfProjectiles][1]=gEnemyList[EnemyIndex][1];
-  gProjectileList[gNumberOfProjectiles][5]=gPlayerX/10;
-  gProjectileList[gNumberOfProjectiles][6]=gPlayerY/10;
+  gProjectileList[gNumberOfProjectiles][5]=gPlayer.x/10;
+  gProjectileList[gNumberOfProjectiles][6]=gPlayer.y/10;
   gProjectileList[gNumberOfProjectiles][8]=6;
   gProjectileList[gNumberOfProjectiles][9]=1;
   computeProjectileVelocityAndSteps(gNumberOfProjectiles);
@@ -1158,7 +1139,7 @@ int play(void){
   int SwitchSpell;//Switch spell flag
   int CastSpell=0;//Cast spell flag
   int ScreenX,ScreenY;//Upper left corner of the screen expressed in map coordinates
-  gPlayerX=5*SCREEN_WIDTH,gPlayerY=5*SCREEN_HEIGHT;
+  gPlayer.x=5*SCREEN_WIDTH,gPlayer.y=5*SCREEN_HEIGHT;
   centreScreenOnPlayer(&ScreenX,&ScreenY);
   gPlayerHP=20;gPlayerMaxHP=20;
   gNumberOfProjectiles=0;
@@ -1231,8 +1212,8 @@ int play(void){
       if(gSpellStock[SpellType]){
         Cooldown=gProjectileCooldown[SpellType];//Set the Cooldown counter
         gSpellStock[SpellType]--;
-        gProjectileList[gNumberOfProjectiles][0]=gPlayerX;
-        gProjectileList[gNumberOfProjectiles][1]=gPlayerY;
+        gProjectileList[gNumberOfProjectiles][0]=gPlayer.x;
+        gProjectileList[gNumberOfProjectiles][1]=gPlayer.y;
         gProjectileList[gNumberOfProjectiles][5]=ScreenX+MouseX;
         gProjectileList[gNumberOfProjectiles][6]=ScreenY+MouseY;
         gProjectileList[gNumberOfProjectiles][8]=SpellType;
@@ -1284,8 +1265,8 @@ int play(void){
       gPlayerSkipFrames--;
     
     if(Hello>0){
-      gTextX=gPlayerX/10+12-ScreenX;
-      gTextY=gPlayerY/10-45-ScreenY;
+      gTextX=gPlayer.x/10+12-ScreenX;
+      gTextY=gPlayer.y/10-45-ScreenY;
       renderText(gTextX+5,"Hello FlyingJester !\n\nHow are you doing ?");
       Hello-=DELAY_BETWEEN_FRAMES;
     }
@@ -1321,7 +1302,7 @@ int main(int argc,char*argv[]){
     printf("Failed to initialize!\n");
   }
   else{
-    if(loadTiles()||loadPlayer()||loadEnemy()||loadProjectiles()||loadLife()||loadFont()||loadTitle()||loadGameOver()
+    if(loadEntityTypes(gRenderer)||loadTiles()||loadEnemy()||loadProjectiles()||loadLife()||loadFont()||loadTitle()||loadGameOver()
       #ifdef AUDIO
       ||loadAudio(audioCtx)
       #endif
