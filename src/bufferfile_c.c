@@ -26,7 +26,6 @@ void *BufferFile(const char *file, int *size){
             else
                 buffer = malloc(capacity);
             to += fread(buffer+to, 1, capacity-to, that);
-            buffer[to] = 0;
         }while(!feof(that));
 
         size[0] = to;
