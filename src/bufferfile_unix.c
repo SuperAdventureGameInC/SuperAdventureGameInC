@@ -6,6 +6,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#define STDERR_FILENO 2
+
 static const char cannot_write_string[] = "[BufferFile] Could not open file ";
 static const unsigned cannot_write_string_len = (sizeof cannot_write_string) - 1;
 
