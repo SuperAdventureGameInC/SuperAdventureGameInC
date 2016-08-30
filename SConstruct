@@ -10,7 +10,7 @@ if os.name == "posix":
 
 turbojson = SConscript(dirs=["TurboJSON"], exports=["environment"])
 
-environment.Append(CPPPATH = os.getcwd())
+environment.Append(CPPPATH = [os.getcwd(), os.path.join(os.getcwd(), "include")], LIBPATH = os.path.join(os.getcwd(), "lib"))
 
 def EnabledString(that):
     if that:

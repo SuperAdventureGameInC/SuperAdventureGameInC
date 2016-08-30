@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL_image.h>
 
+#include <stdio.h>
 #include <assert.h>
 
 struct EntityType lEntityTypes[NUM_ENTITY_TYPES];
