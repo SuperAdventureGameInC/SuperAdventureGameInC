@@ -33,7 +33,11 @@ if os.name == "nt" and configure.CheckLib("mingw32"):
 l_env = configure.Finish()
 
 if use_audio:
-    libs += ["ogg", "opus", "openal"]
+    libs += ["ogg", "opus"]
+    if os.name == "nt":
+        libs += ["OpenAL32"]
+    else:
+        libs += ["openal"]
     build_env.Append(CPPDEFINES="AUDIO=1")
     source += ["Audio.c"]
 
