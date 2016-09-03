@@ -39,6 +39,7 @@
 #define MAX_ENEMY 100//maximum number of enemies
 #define ENEMY_INFO 8//number of information stored per enemy
 #define NUMBER_OF_SPELLS 6//number of spells in the game
+#define MAX_INSTRUCTIONS 10
 
 struct Entity gPlayer;
 
@@ -57,9 +58,9 @@ int gPlayerSkipFrames;//To blink if the player get hit
 int gNumberOfProjectiles;
 int gProjectileList[MAX_PROJECTILE][PROJECTILE_INFO];//Each row of gProjectileList contains the following information about a projectile: PositionX*10, PositionY*10, VelocityX*10, VelocityY*10, TravelSteps, TargetX, TargetY, Direction (0 to 15), ProjectileType (0 to NUMBER_OF_SPELLS - 1 for spells, NUMBER_OF_SPELLS and above will serve for other projectiles), Caster (0=player,1=enemy)
 int gNumberOfEnemies;
-int gEnemyList[MAX_ENEMY][ENEMY_INFO];//Each row of gEnemyList contains the following information about a enemy: PositionX*10, PositionY*10, EnemyType, HP, Frame, Orientation, Cooldown, SkipFrame
+int gEnemyList[MAX_ENEMY][ENEMY_INFO+1+3*MAX_INSTRUCTIONS]={0};//Each row of gEnemyList contains the following information about a enemy: PositionX*10, PositionY*10, EnemyType, HP, Frame, Orientation, Cooldown, SkipFrame
 const int gPlayerDirection[16]={3,3,3,0,0,0,0,1,1,1,1,2,2,2,2,3};//gPlayerDirection[ProjectileDirection] is the player direction when casting a spell in ProjectileDirection
-int gTileType[2049]={0,
+int gTileType[2049]={0,//gTileType[TileIndex] is the TileType associated with tile of index TileIndex. TileType are 0 = no title, 1 = overlay to render above entities and projectiles, 2 = walkable tile, 3 = obstacle to movement, 4 = obstacle to movement and projectiles
 2,2,2,2,2,2,2,2,2,2,2,2,4,4,4,4,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,1,3,3,3,0,0,1,3,1,2,2,2,2,2,2,
 2,2,2,2,2,2,2,2,2,2,2,2,4,4,4,4,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,3,2,2,2,3,3,2,2,2,2,2,2,2,2,2,
 2,2,2,2,2,2,2,2,2,2,2,2,4,4,4,4,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,2,2,2,2,3,2,2,2,2,2,2,2,2,2,2,
@@ -92,8 +93,8 @@ int gTileType[2049]={0,
 2,2,2,2,2,2,2,2,2,1,1,1,1,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
 2,2,2,2,2,2,2,2,2,1,4,4,1,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
 2,2,2,2,2,2,2,2,2,0,4,4,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2};
-int gMapMovementObstacle[MAX_ROW][MAX_COLUMN];
-int gMapProjectileObstacle[MAX_ROW][MAX_COLUMN];
+int gMapMovementObstacle[MAX_ROW][MAX_COLUMN];//gMapMovementObstacle[i][j] = 1 if location(i,j) is a movement obstacle, = 0 otherwise
+int gMapProjectileObstacle[MAX_ROW][MAX_COLUMN];//gMapProjectileObstacle[i][j] = 1 if location(i,j) is a projectile obstacle, = 0 otherwise
 int gHasSpell[NUMBER_OF_SPELLS]={0};//Spells available to the player
 int gSpellStock[NUMBER_OF_SPELLS]={0};//Number of spells the player has in stock for each spell
 int gMaxSpellStock[NUMBER_OF_SPELLS]={200,400,200,200,200,200};//Maximum stock for each spell
@@ -832,6 +833,20 @@ int movePlayer(void){
   return 0;
 }
 
+void moveEnemy(int EnemyIndex){
+  
+  if(gEnemyList[EnemyIndex][ENEMY_INFO]){
+    gEnemyList[EnemyIndex][0]+=gEnemyList[EnemyIndex][gEnemyList[EnemyIndex][ENEMY_INFO]];
+    gEnemyList[EnemyIndex][1]+=gEnemyList[EnemyIndex][gEnemyList[EnemyIndex][ENEMY_INFO]+1];
+    if(--gEnemyList[EnemyIndex][gEnemyList[EnemyIndex][ENEMY_INFO]+2]==0)
+      if(gEnemyList[EnemyIndex][ENEMY_INFO]==ENEMY_INFO-2+3*MAX_INSTRUCTIONS)
+        gEnemyList[EnemyIndex][ENEMY_INFO]=0;
+      else
+        gEnemyList[EnemyIndex][ENEMY_INFO]+=3;
+  }
+  
+}
+
 void centreScreenOnPlayer(int*ScreenX,int*ScreenY){
   if(gPlayer.x/10<=SCREEN_WIDTH/2)*ScreenX=0;
   else if(gPlayer.x/10>=MAX_COLUMN*32-SCREEN_WIDTH/2)*ScreenX=MAX_COLUMN*32-SCREEN_WIDTH;
@@ -1150,15 +1165,30 @@ int play(void){
   gEnemyList[gNumberOfEnemies][6]=0;
   gEnemyList[gNumberOfEnemies][7]=0;
   gNumberOfEnemies++;
-  /*gEnemyList[gNumberOfEnemies][0]=29*320;
-  gEnemyList[gNumberOfEnemies][1]=25*320;
+  gEnemyList[gNumberOfEnemies][0]=4*320;
+  gEnemyList[gNumberOfEnemies][1]=4*320;
   gEnemyList[gNumberOfEnemies][3]=20;
   gEnemyList[gNumberOfEnemies][4]=1;
   gEnemyList[gNumberOfEnemies][5]=1;
   gEnemyList[gNumberOfEnemies][6]=0;
   gEnemyList[gNumberOfEnemies][7]=0;
+  gEnemyList[gNumberOfEnemies][8]=9;//test move
+  gEnemyList[gNumberOfEnemies][9]=50;
+  gEnemyList[gNumberOfEnemies][10]=0;
+  gEnemyList[gNumberOfEnemies][11]=100;
+  gEnemyList[gNumberOfEnemies][12]=0;
+  gEnemyList[gNumberOfEnemies][13]=30;
+  gEnemyList[gNumberOfEnemies][14]=100;
+  gEnemyList[gNumberOfEnemies][15]=-50;
+  gEnemyList[gNumberOfEnemies][16]=0;
+  gEnemyList[gNumberOfEnemies][17]=100;
+  gEnemyList[gNumberOfEnemies][18]=0;
+  gEnemyList[gNumberOfEnemies][19]=-30;
+  gEnemyList[gNumberOfEnemies][20]=100;
+  gEnemyList[gNumberOfEnemies][21]=35;
+  gEnemyList[gNumberOfEnemies][22]=15;
+  gEnemyList[gNumberOfEnemies][23]=100;
   gNumberOfEnemies++;
-  */
   
   SDL_Event Event;//Event handler
   const Uint8 *KeyboardState=SDL_GetKeyboardState(NULL);
@@ -1223,6 +1253,7 @@ int play(void){
       }
     }
     
+    moveEnemy(1);//test move
     if(movePlayer()){
       PlayerFrame+=2;if(PlayerFrame>=90)PlayerFrame=10;//cycle animation frames PlayerFrame/10 in [1,8]
     }
@@ -1287,7 +1318,7 @@ int main(int argc,char*argv[]){
   
   int Layer,i,j;
   for(i=0;i<MAX_ROW;i++)
-    for(j=0;j<MAX_COLUMN;j++){
+    for(j=0;j<MAX_COLUMN;j++){//To determine if a tile is a movement/projectile obstruction, we look for a non-null tile in layer 1 then (if needed) in layer 0. If the tile is of type 3, it obstructs movement. If it is of type 4, it obstructs movement and projectiles.
       for(Layer=2;!gMap[--Layer][i][j];);
       gMapMovementObstacle[i][j]=(gTileType[gMap[Layer][i][j]]>2);
       gMapProjectileObstacle[i][j]=(gTileType[gMap[Layer][i][j]]==4);
